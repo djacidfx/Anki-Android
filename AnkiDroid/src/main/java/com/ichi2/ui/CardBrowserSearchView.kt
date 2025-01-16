@@ -18,41 +18,39 @@ package com.ichi2.ui
 
 import android.content.Context
 import android.util.AttributeSet
-import androidx.appcompat.widget.SearchView
 
-class CardBrowserSearchView : SearchView {
+class CardBrowserSearchView : AccessibleSearchView {
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
     constructor(context: Context, attrs: AttributeSet, defStyleAttr: Int) : super(context, attrs, defStyleAttr)
 
     /** Whether an action to set text should be ignored  */
-    private var mIgnoreValueChange = false
-
-    /** Whether an action to set text should be ignored  */
-    fun shouldIgnoreValueChange(): Boolean {
-        return mIgnoreValueChange
-    }
+    var ignoreValueChange = false
+        private set
 
     override fun onActionViewCollapsed() {
         try {
-            mIgnoreValueChange = true
+            ignoreValueChange = true
             super.onActionViewCollapsed()
         } finally {
-            mIgnoreValueChange = false
+            ignoreValueChange = false
         }
     }
 
     override fun onActionViewExpanded() {
         try {
-            mIgnoreValueChange = true
+            ignoreValueChange = true
             super.onActionViewExpanded()
         } finally {
-            mIgnoreValueChange = false
+            ignoreValueChange = false
         }
     }
 
-    override fun setQuery(query: CharSequence, submit: Boolean) {
-        if (mIgnoreValueChange) {
+    override fun setQuery(
+        query: CharSequence,
+        submit: Boolean,
+    ) {
+        if (ignoreValueChange) {
             return
         }
         super.setQuery(query, submit)

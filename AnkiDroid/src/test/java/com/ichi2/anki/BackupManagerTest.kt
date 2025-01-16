@@ -23,7 +23,13 @@ import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.*
+import org.mockito.Mockito.anyString
+import org.mockito.Mockito.doNothing
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.spy
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import java.io.File
@@ -93,9 +99,10 @@ open class BackupManagerTest {
         assertThat("should fail if collection too small", result, equalTo(false))
     }
 
-    private fun performBackup(bm: BackupManager, time: Time = MockTime(100000000)): Boolean {
-        return bm.performBackupInBackground("/AnkiDroid/", time)
-    }
+    private fun performBackup(
+        bm: BackupManager,
+        time: Time = MockTime(100000000),
+    ): Boolean = bm.performBackupInBackground("/AnkiDroid/", time)
 
     /** Returns a spy of BackupManager which would pass  */
     private val passingBackupManagerSpy: BackupManager

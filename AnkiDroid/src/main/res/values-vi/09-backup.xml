@@ -46,11 +46,11 @@
 <resources>
     <string name="backup_deck_no_storage_left">Sao lưu chưa được lưu. Không còn đủ dung lượng trên bộ nhớ của bạn. Hãy giảm dung lượng sao lưu hoặc xóa một số tệp khác.</string>
     <string name="storage_warning">Còn lại dưới %d MB dung lượng trên thẻ bộ nhớ của bạn.\Giải phóng một số dung lượng để tránh mất dữ liệu.</string>
-    <string name="backup_restore">Khôi phục từ bản sao lưu</string>
+    <string name="backup_restore" maxLength="28">Khôi phục từ bản sao lưu</string>
     <string name="backup_new_collection">Bộ sưu tập mới</string>
     <string name="backup_del_collection">Xóa bộ sưu tập và tạo bộ sưu tập mới</string>
     <string name="backup_del_collection_question">Xoá bộ sưu tập và tạo ra một bộ mới? Điều này sẽ huỷ toàn bộ quá trình học của bạn và cũng xóa tất cả thẻ.</string>
-    <string name="backup_full_sync_from_server">Đồng bộ hóa đầy đủ từ máy chủ</string>
+    <string name="backup_one_way_sync_from_server">Đồng bộ một chiều từ máy chủ</string>
     <string name="backup_full_sync_from_server_question">Ghi đè bộ sưu tập của bạn bằng bộ sưu tập từ AnkiWeb? Điều này sẽ làm giảm tất cả tiến trình học tập và thông tin bổ sung của bạn kể từ lần đồng bộ hóa cuối cùng của bạn.</string>
     <string name="error_handling_title">Lỗi xử lý</string>
     <string name="error_handling_options" comment="In a warning message, the label of the suggested action that the user should take">Các tùy chọn</string>

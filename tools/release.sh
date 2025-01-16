@@ -87,30 +87,24 @@ if [ "$PUBLIC" != "public" ]; then
 
   # Edit AndroidManifest.xml to bump version string
   echo "Bumping version from $PREVIOUS_VERSION$SUFFIX to $VERSION (and code from $PREVIOUS_CODE to $GUESSED_CODE)"
-  sed -i -e s/"$PREVIOUS_VERSION"$SUFFIX/"$VERSION"/g $GRADLEFILE
+  sed -i -e s/"$PREVIOUS_VERSION""$SUFFIX"/"$VERSION"/g $GRADLEFILE
   sed -i -e s/versionCode="$PREVIOUS_CODE"/versionCode="$GUESSED_CODE"/g $GRADLEFILE
 fi
 
 # If any changes go in during the release process, pushing fails, so push immediately.
 # Worst case this burns a version number despite a failure later, and we have a version/tag
-# that never launched. That's better than having to manually patch up build.gradle and push a tag
+# that never launched. That's better than having to manually patch up build.gradle.kts and push a tag
 # for a release that did launch, but the push failed
 echo "Committing changelog and version bump via git"
 git add $GRADLEFILE $CHANGELOG
 git commit -m "Bumped version to $VERSION"
 git tag v"$VERSION"
 
-# Read the key passwords if needed
-if [ "$KSTOREPWD" == "" ]; then
-  read -rsp "Enter keystore password: " KSTOREPWD; echo
-  read -rsp "Enter key password: " KEYPWD; echo
-  export KSTOREPWD
-  export KEYPWD
-fi
+. tools/check-keystore.sh
 
 # Build signed APK using Gradle and publish to Play.
 # Do this before building universal of the play flavor so the universal is not uploaded to Play Store
-# Configuration for pushing to Play specified in build.gradle 'play' task
+# Configuration for pushing to Play specified in build.gradle.kts 'play' task
 echo "Running 'publishPlayReleaseApk' gradle target"
 ./gradlew --stop
 if ! ./gradlew publishPlayReleaseApk
@@ -147,6 +141,20 @@ for FLAVOR in $FLAVORS; do
   cp AnkiDroid/build/outputs/apk/"$FLAVOR"/release/AnkiDroid-"$FLAVOR"-universal-release.apk AnkiDroid-"$VERSION"-"$FLAVOR"-universal.apk
 done
 
+# Pack up our proguard mapping file for debugging in case needed
+tar -zcf proguard-mappings.tar.gz AnkiDroid/build/outputs/mapping
+
+# Create a full universal build that disables minify, to help diagnose proguard issues
+./gradlew --stop
+echo Running assembleFullRelease target with universal APK flag and MINIFY_ENABLED=false
+if ! MINIFY_ENABLED=false ./gradlew assembleFullRelease -Duniversal-apk=true
+then
+  echo "unable to build full unminified APKs"
+  exit 1
+fi
+# Copy our unminified full universal release out
+cp AnkiDroid/build/outputs/apk/full/release/AnkiDroid-full-universal-release.apk AnkiDroid-"$VERSION"-full-universal-nominify.apk
+
 # Push to Github Releases.
 GITHUB_TOKEN=$(cat ~/src/my-github-personal-access-token)
 export GITHUB_TOKEN
@@ -159,32 +167,43 @@ else
   PRE_RELEASE="--pre-release"
 fi
 
+# Get the directory of the current script
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+# Read the content of the markdown file using the absolute path
+RELEASE_NOTES=$(cat "$SCRIPT_DIR/release-description.md")
 echo "Creating new Github release"
-github-release release --tag v"$VERSION" --name "AnkiDroid $VERSION" --description "**For regular users:**<br/>\
-<br/>\
-Install the main APK below, trying the 'full-universal' build first for new installs. If it refuses to install and run correctly or you have previously installed from the Play Store, you must pick the APK that matches CPU instruction set for your device.<br/>\
-<br/>\
-This will be arm64-v8a for most phones from the last few years but [here is a guide to help you choose](https://www.howtogeek.com/339665/how-to-find-your-android-devices-info-for-correct-apk-downloads/)<br/>\
-<br/>\
-<br/>\
-**For testers and multiple profiles users:**<br/>\
-<br/>\
-The builds with 'full', 'play' or 'amazon' are useful for testing our builds for different app stores.<br/>\
-<br/>\
-The builds with letter codes below (A, B, etc) are universal parallel builds. They will install side-by-side with the main APK for testing, or to connect to a different AnkiWeb account in combination with changing the storage directory in preferences" $PRE_RELEASE
+github-release release --tag v"$VERSION" --name "AnkiDroid $VERSION" --description "$RELEASE_NOTES" $PRE_RELEASE
 
 echo "Sleeping 30s to make sure the release exists, see issue 11746"
 sleep 30
 
+# PREFIX is used to order the ABIs in the file list. Most users will use `arm64-v8a`.
+# variant ABIs are a source of error and confusion, so should be lower in the list
+PREFIX=""
 for ABI in $ABIS; do
+  if [ "$ABI" = "arm64-v8a" ]; then
+    PREFIX=""
+  else
+    PREFIX="variant-abi-"
+  fi
   echo "Adding full APK for $ABI to Github release"
-  github-release upload --tag v"$VERSION" --name AnkiDroid-"$VERSION"-"$ABI".apk --file AnkiDroid-"$VERSION"-"$ABI".apk
+  github-release upload --tag v"$VERSION" --name "$PREFIX"AnkiDroid-"$VERSION"-"$ABI".apk --file AnkiDroid-"$VERSION"-"$ABI".apk
 done
-# Copy flavor universal APKs to cwd
 for FLAVOR in $FLAVORS; do
-  echo "Adding universal APK for $FLAVOR to Github release"
-  github-release upload --tag v"$VERSION" --name AnkiDroid-"$VERSION"-"$FLAVOR"-universal.apk --file AnkiDroid-"$VERSION"-"$FLAVOR"-universal.apk
+  if [ "$FLAVOR" = "full" ]; then
+    PREFIX=""
+  else
+    PREFIX="dev-"
+  fi
+  echo "Adding full APK for $FLAVOR to Github release"
+  github-release upload --tag v"$VERSION" --name "$PREFIX"AnkiDroid-"$VERSION"-"$FLAVOR"-universal.apk --file AnkiDroid-"$VERSION"-"$FLAVOR"-universal.apk
 done
+# Set to z- for un-minified full universal APK and proguard to ensure it is at the end of the list
+PREFIX="z-"
+echo "Adding un-minified full universal APK to GitHub release"
+github-release upload --tag v"$VERSION" --name "$PREFIX"AnkiDroid-"$VERSION"-full-universal-nominify.apk --file AnkiDroid-"$VERSION"-full-universal-nominify.apk
+echo "Adding proguard mappings file to Github release"
+github-release upload --tag v"$VERSION" --name "$PREFIX"proguard-mappings.tar.gz --file proguard-mappings.tar.gz
 
 # Not publishing to amazon pending: https://github.com/ankidroid/Anki-Android/issues/14161
 #if [ "$PUBLIC" = "public" ]; then
@@ -208,6 +227,7 @@ else
   BUILDNAMES='A B' # For alpha releases just post a couple parallel builds
 fi
 for BUILD in $BUILDNAMES; do
+  PREFIX=""
   echo "Adding parallel build $BUILD to Github release"
-  github-release upload --tag v"$VERSION" --name AnkiDroid-"$VERSION".parallel."$BUILD".apk --file AnkiDroid-"$VERSION".parallel."$BUILD".apk
+  github-release upload --tag v"$VERSION" --name "$PREFIX"AnkiDroid-"$VERSION".parallel."$BUILD".apk --file AnkiDroid-"$VERSION".parallel."$BUILD".apk
 done

@@ -20,229 +20,189 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.view.LayoutInflater
 import android.view.View
-import android.view.View.OnLongClickListener
 import android.view.ViewGroup
-import android.widget.*
-import androidx.annotation.CheckResult
-import androidx.annotation.VisibleForTesting
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
+import android.widget.TextView
+import androidx.core.content.res.getDrawableOrThrow
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.ichi2.anki.CollectionManager.withCol
+import com.ichi2.anki.OnContextAndLongClickListener.Companion.setOnContextAndLongClickListener
 import com.ichi2.anki.R
+import com.ichi2.anki.utils.ext.findViewById
 import com.ichi2.libanki.DeckId
 import com.ichi2.libanki.sched.DeckNode
-import com.ichi2.utils.KotlinCleanup
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import net.ankiweb.rsdroid.RustCleanup
-import timber.log.Timber
-import java.util.*
 
-@KotlinCleanup("lots to do")
-@RustCleanup("Lots of bad code: should not be using suspend functions inside an adapter")
+/**
+ * A [RecyclerView.Adapter] used to show the list of decks inside [com.ichi2.anki.DeckPicker].
+ *
+ * @param activityHasBackground true if [com.ichi2.anki.DeckPicker] has a background set, false
+ * otherwise. If true the adapter will make the rows transparent so the background can be seen.
+ * @param onDeckSelected callback triggered when the user selects a deck
+ * @param onDeckCountsSelected callback triggered when the user selects the counts of a deck
+ * @param onDeckChildrenToggled callback triggered when the user toggles the visibility of its
+ * children to show/hide the children. Only for decks that have children.
+ * @param onDeckContextRequested callback triggered when the user requested to see extra actions for
+ * a deck. This consists in a context menu brought in by either a long touch or a right click.
+ */
 @RustCleanup("Differs from legacy backend: Create deck 'One', create deck 'One::two'. 'One::two' was not expanded")
-class DeckAdapter(private val layoutInflater: LayoutInflater, context: Context) : RecyclerView.Adapter<DeckAdapter.ViewHolder>(), Filterable {
-    private var deckTree: DeckNode? = null
-
-    /** The non-collapsed subset of the deck tree that matches the current search. */
-    private var filteredDeckList: List<DeckNode> = ArrayList()
-    private val mZeroCountColor: Int
-    private val mNewCountColor: Int
-    private val mLearnCountColor: Int
-    private val mReviewCountColor: Int
-    private val mRowCurrentDrawable: Int
-    private val mDeckNameDefaultColor: Int
-    private val mDeckNameDynColor: Int
-    private val mExpandImage: Drawable?
-    private val mCollapseImage: Drawable?
+class DeckAdapter(
+    context: Context,
+    private val activityHasBackground: Boolean,
+    private val onDeckSelected: (DeckId) -> Unit,
+    private val onDeckCountsSelected: (DeckId) -> Unit,
+    private val onDeckChildrenToggled: (DeckId) -> Unit,
+    private val onDeckContextRequested: (DeckId) -> Unit,
+) : ListAdapter<DeckNode, DeckAdapter.ViewHolder>(deckNodeDiffCallback) {
+    private val layoutInflater = LayoutInflater.from(context)
+    private val zeroCountColor: Int
+    private val newCountColor: Int
+    private val learnCountColor: Int
+    private val reviewCountColor: Int
+    private val rowCurrentDrawable: Int
+    private val deckNameDefaultColor: Int
+    private val deckNameDynColor: Int
+    private val expandImage: Drawable
+    private val collapseImage: Drawable
+    private val selectableItemBackground: Int
+    private val endPadding: Int = context.resources.getDimension(R.dimen.deck_picker_right_padding).toInt()
+    private val startPadding: Int = context.resources.getDimension(R.dimen.deck_picker_left_padding).toInt()
+    private val startPaddingSmall: Int = context.resources.getDimension(R.dimen.deck_picker_left_padding_small).toInt()
+    private val nestedIndent = context.resources.getDimension(R.dimen.keyline_1).toInt()
     private var currentDeckId: DeckId = 0
 
-    // Listeners
-    private var mDeckClickListener: View.OnClickListener? = null
-    private var mDeckExpanderClickListener: View.OnClickListener? = null
-    private var mDeckLongClickListener: OnLongClickListener? = null
-    private var mCountsClickListener: View.OnClickListener? = null
-
-    // Totals accumulated as each deck is processed
-    private var mNew = 0
-    private var mLrn = 0
-    private var mRev = 0
-    private var mNumbersComputed = false
-
     // Flags
-    private var mHasSubdecks = false
+    private var hasSubdecks = false
 
-    // Whether we have a background (so some items should be partially transparent).
-    private var mPartiallyTransparentForBackground = false
-
-    // ViewHolder class to save inflated views for recycling
-    class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
-        val deckLayout: RelativeLayout
-        val countsLayout: LinearLayout
-        val deckExpander: ImageButton
-        val indentView: ImageButton
-        val deckName: TextView
-        val deckNew: TextView
-        val deckLearn: TextView
-        val deckRev: TextView
-
-        init {
-            deckLayout = v.findViewById(R.id.DeckPickerHoriz)
-            countsLayout = v.findViewById(R.id.counts_layout)
-            deckExpander = v.findViewById(R.id.deckpicker_expander)
-            indentView = v.findViewById(R.id.deckpicker_indent)
-            deckName = v.findViewById(R.id.deckpicker_name)
-            deckNew = v.findViewById(R.id.deckpicker_new)
-            deckLearn = v.findViewById(R.id.deckpicker_lrn)
-            deckRev = v.findViewById(R.id.deckpicker_rev)
-        }
+    class ViewHolder(
+        v: View,
+    ) : RecyclerView.ViewHolder(v) {
+        val deckLayout: RelativeLayout = findViewById(R.id.DeckPickerHoriz)
+        val countsLayout: LinearLayout = findViewById(R.id.counts_layout)
+        val deckExpander: ImageButton = findViewById(R.id.deckpicker_expander)
+        val indentView: ImageButton = findViewById(R.id.deckpicker_indent)
+        val deckName: TextView = findViewById(R.id.deckpicker_name)
+        val deckNew: TextView = findViewById(R.id.deckpicker_new)
+        val deckLearn: TextView = findViewById(R.id.deckpicker_lrn)
+        val deckRev: TextView = findViewById(R.id.deckpicker_rev)
     }
-
-    fun setDeckClickListener(listener: View.OnClickListener?) {
-        mDeckClickListener = listener
-    }
-
-    fun setCountsClickListener(listener: View.OnClickListener?) {
-        mCountsClickListener = listener
-    }
-
-    fun setDeckExpanderClickListener(listener: View.OnClickListener?) {
-        mDeckExpanderClickListener = listener
-    }
-
-    fun setDeckLongClickListener(listener: OnLongClickListener?) {
-        mDeckLongClickListener = listener
-    }
-
-    /** Sets whether the control should have partial transparency to allow a background to be seen  */
-    fun enablePartialTransparencyForBackground(isTransparent: Boolean) {
-        mPartiallyTransparentForBackground = isTransparent
-    }
-
-    private val mutex = Mutex()
 
     /**
-     * Consume a list of [DeckNode]s to render a new deck list.
-     * @param filter The string to filter the deck by
+     * Set new data in the adapter. This should be used instead of [submitList] (which is called
+     * by this method) so there's no need to call [notifyDataSetChanged] on the adapter.
      */
-    suspend fun buildDeckList(node: DeckNode, filter: CharSequence?) {
-        Timber.d("buildDeckList")
-        // TODO: This is a lazy hack to fix a bug. We hold the lock for far too long
-        // and do I/O inside it. Better to calculate the new lists outside the lock, then swap
-        mutex.withLock {
-            deckTree = node
-            mHasSubdecks = node.children.any { it.children.any() }
-            currentDeckId = withCol { decks.current().optLong("id") }
-            mRev = node.revCount
-            mLrn = node.lrnCount
-            mNew = node.newCount
-            mNumbersComputed = true
-            // Filtering performs notifyDataSetChanged after the async work is complete
-            getFilter()?.filter(filter)
+    fun submit(
+        data: List<DeckNode>,
+        hasSubDecks: Boolean,
+        currentDeckId: DeckId,
+    ) {
+        // submitList is smart to not trigger a refresh if the new list is the same, but we do need
+        // an adapter refresh if the other two properties have changed even if the new data is the
+        // same as they modify some of the adapter's content appearance
+        val forceRefresh =
+            areDataSetsEqual(currentList, data) &&
+                (this.hasSubdecks != hasSubDecks || this.currentDeckId != currentDeckId)
+        this.hasSubdecks = hasSubDecks
+        this.currentDeckId = currentDeckId
+        submitList(data)
+        if (forceRefresh) notifyDataSetChanged()
+    }
+
+    private fun areDataSetsEqual(
+        currentSet: List<DeckNode>,
+        newSet: List<DeckNode>,
+    ): Boolean {
+        if (currentSet.size != newSet.size) return false
+        return currentSet.zip(newSet).all { (fst, snd) ->
+            fst.fullDeckName == snd.fullDeckName
         }
     }
 
-    @CheckResult
-    fun getNodeByDid(did: DeckId): DeckNode {
-        val pos = findDeckPosition(did)
-        return deckList[pos]
+    /**
+     * Update the current selected deck so the adapter shows the proper backgrounds.
+     * Calls [notifyDataSetChanged].
+     */
+    fun updateSelectedDeck(deckId: DeckId) {
+        this.currentDeckId = deckId
+        notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val v = layoutInflater.inflate(R.layout.deck_item, parent, false)
-        return ViewHolder(v)
-    }
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ViewHolder = ViewHolder(layoutInflater.inflate(R.layout.deck_item, parent, false))
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        // Update views for this node
-        val node = filteredDeckList[position]
+    override fun onBindViewHolder(
+        holder: ViewHolder,
+        position: Int,
+    ) {
+        val node = getItem(position)
         // Set the expander icon and padding according to whether or not there are any subdecks
         val deckLayout = holder.deckLayout
-        val rightPadding = deckLayout.resources.getDimension(R.dimen.deck_picker_right_padding).toInt()
-        if (mHasSubdecks) {
-            val smallPadding = deckLayout.resources.getDimension(R.dimen.deck_picker_left_padding_small).toInt()
-            deckLayout.setPadding(smallPadding, 0, rightPadding, 0)
+        if (hasSubdecks) {
+            deckLayout.setPaddingRelative(startPaddingSmall, 0, endPadding, 0)
             holder.deckExpander.visibility = View.VISIBLE
             // Create the correct expander for this deck
             runBlocking { setDeckExpander(holder.deckExpander, holder.indentView, node) }
         } else {
             holder.deckExpander.visibility = View.GONE
-            val normalPadding = deckLayout.resources.getDimension(R.dimen.deck_picker_left_padding).toInt()
-            deckLayout.setPadding(normalPadding, 0, rightPadding, 0)
+            deckLayout.setPaddingRelative(startPadding, 0, endPadding, 0)
         }
         if (node.children.isNotEmpty()) {
-            holder.deckExpander.tag = node.did
-            holder.deckExpander.setOnClickListener(mDeckExpanderClickListener)
+            holder.deckExpander.setOnClickListener { onDeckChildrenToggled(node.did) }
         } else {
             holder.deckExpander.isClickable = false
             holder.deckExpander.setOnClickListener(null)
         }
-        holder.deckLayout.setBackgroundResource(mRowCurrentDrawable)
-        // Set background colour. The current deck has its own color
-        if (isCurrentlySelectedDeck(node)) {
-            holder.deckLayout.setBackgroundResource(mRowCurrentDrawable)
-            if (mPartiallyTransparentForBackground) {
-                setBackgroundAlpha(holder.deckLayout, SELECTED_DECK_ALPHA_AGAINST_BACKGROUND)
+        holder.deckLayout.setBackgroundResource(rowCurrentDrawable)
+        // set a different background color for the current selected deck
+        if (node.did == currentDeckId) {
+            holder.deckLayout.setBackgroundResource(rowCurrentDrawable)
+            if (activityHasBackground) {
+                val background = holder.deckLayout.background.mutate()
+                background.alpha = (255 * SELECTED_DECK_ALPHA_AGAINST_BACKGROUND).toInt()
+                holder.deckLayout.background = background
             }
         } else {
-            // Ripple effect
-            val attrs = intArrayOf(android.R.attr.selectableItemBackground)
-            val ta = holder.deckLayout.context.obtainStyledAttributes(attrs)
-            holder.deckLayout.setBackgroundResource(ta.getResourceId(0, 0))
-            ta.recycle()
+            holder.deckLayout.setBackgroundResource(selectableItemBackground)
         }
         // Set deck name and colour. Filtered decks have their own colour
         holder.deckName.text = node.lastDeckNameComponent
-        val filtered =
-            node.filtered
-        if (filtered) {
-            holder.deckName.setTextColor(mDeckNameDynColor)
-        } else {
-            holder.deckName.setTextColor(mDeckNameDefaultColor)
-        }
+        holder.deckName.setTextColor(if (node.filtered) deckNameDynColor else deckNameDefaultColor)
 
         // Set the card counts and their colors
         holder.deckNew.text = node.newCount.toString()
-        holder.deckNew.setTextColor(if (node.newCount == 0) mZeroCountColor else mNewCountColor)
+        holder.deckNew.setTextColor(if (node.newCount == 0) zeroCountColor else newCountColor)
         holder.deckLearn.text = node.lrnCount.toString()
-        holder.deckLearn.setTextColor(if (node.lrnCount == 0) mZeroCountColor else mLearnCountColor)
+        holder.deckLearn.setTextColor(if (node.lrnCount == 0) zeroCountColor else learnCountColor)
         holder.deckRev.text = node.revCount.toString()
-        holder.deckRev.setTextColor(if (node.revCount == 0) mZeroCountColor else mReviewCountColor)
+        holder.deckRev.setTextColor(if (node.revCount == 0) zeroCountColor else reviewCountColor)
 
-        // Store deck ID in layout's tag for easy retrieval in our click listeners
-        holder.deckLayout.tag = node.did
-        holder.countsLayout.tag = node.did
-
-        // Set click listeners
-        holder.deckLayout.setOnClickListener(mDeckClickListener)
-        holder.deckLayout.setOnLongClickListener(mDeckLongClickListener)
-        holder.countsLayout.setOnClickListener(mCountsClickListener)
+        holder.deckLayout.setOnClickListener { onDeckSelected(node.did) }
+        holder.deckLayout.setOnContextAndLongClickListener {
+            onDeckContextRequested(node.did)
+            true
+        }
+        holder.countsLayout.setOnClickListener { onDeckCountsSelected(node.did) }
     }
 
-    private fun setBackgroundAlpha(view: View, alphaPercentage: Double) {
-        val background = view.background.mutate()
-        background.alpha = (255 * alphaPercentage).toInt()
-        view.background = background
-    }
-
-    private fun isCurrentlySelectedDeck(node: DeckNode): Boolean {
-        return node.did == currentDeckId
-    }
-
-    override fun getItemCount(): Int {
-        return filteredDeckList.size
-    }
-
-    @RustCleanup("non suspend")
-    private fun setDeckExpander(expander: ImageButton, indent: ImageButton, node: DeckNode) {
+    private fun setDeckExpander(
+        expander: ImageButton,
+        indent: ImageButton,
+        node: DeckNode,
+    ) {
         // Apply the correct expand/collapse drawable
         if (node.children.isNotEmpty()) {
             expander.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             if (node.collapsed) {
-                expander.setImageDrawable(mExpandImage)
+                expander.setImageDrawable(expandImage)
                 expander.contentDescription = expander.context.getString(R.string.expand)
             } else {
-                expander.setImageDrawable(mCollapseImage)
+                expander.setImageDrawable(collapseImage)
                 expander.contentDescription = expander.context.getString(R.string.collapse)
             }
         } else {
@@ -250,91 +210,62 @@ class DeckAdapter(private val layoutInflater: LayoutInflater, context: Context) 
             expander.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         // Add some indenting for each nested level
-        val width = indent.resources.getDimension(R.dimen.keyline_1).toInt() * node.depth
-        indent.minimumWidth = width
-    }
-
-    /**
-     * Return the position of the deck in the deck list. If the deck is a child of a collapsed deck
-     * (i.e., not visible in the deck list), then the position of the parent deck is returned instead.
-     *
-     * An invalid deck ID will return position 0.
-     */
-    fun findDeckPosition(did: DeckId): Int {
-        filteredDeckList.forEachIndexed { index, treeNode ->
-            if (treeNode.did == did) {
-                return index
-            }
-        }
-
-        // If the deck is not in our list, we search again using the immediate parent
-        // If the deck is not found, return 0
-        val collapsedDeck = deckTree?.find(did) ?: return 0
-        val parent = collapsedDeck.parent?.get() ?: return 0
-        return findDeckPosition(parent.did)
-    }
-
-    val due: Int?
-        get() = if (mNumbersComputed) {
-            mNew + mLrn + mRev
-        } else {
-            null
-        }
-    private val deckList: List<DeckNode>
-        get() = filteredDeckList
-
-    override fun getFilter(): Filter? {
-        return deckTree?.let { DeckFilter(it) }
-    }
-
-    @VisibleForTesting
-    inner class DeckFilter(private val top: DeckNode) : Filter() {
-        override fun performFiltering(constraint: CharSequence?): FilterResults {
-            val out = top.filterAndFlatten(constraint)
-            Timber.i("deck filter: %d", out.size, constraint)
-            return FilterResults().also {
-                it.values = out
-                it.count = out.size
-            }
-        }
-
-        override fun publishResults(constraint: CharSequence?, results: FilterResults) {
-            @Suppress("unchecked_cast")
-            filteredDeckList = results.values as List<DeckNode>
-            notifyDataSetChanged()
-        }
+        indent.minimumWidth = nestedIndent * node.depth
     }
 
     companion object {
-        /* Make the selected deck roughly half transparent if there is a background */
-        const val SELECTED_DECK_ALPHA_AGAINST_BACKGROUND = 0.45
+        // Make the selected deck roughly half transparent if there is a background
+        private const val SELECTED_DECK_ALPHA_AGAINST_BACKGROUND = 0.45
     }
 
     init {
         // Get the colors from the theme attributes
-        val attrs = intArrayOf(
-            R.attr.zeroCountColor,
-            R.attr.newCountColor,
-            R.attr.learnCountColor,
-            R.attr.reviewCountColor,
-            R.attr.currentDeckBackground,
-            android.R.attr.textColor,
-            R.attr.dynDeckColor,
-            R.attr.expandRef,
-            R.attr.collapseRef
-        )
-        val ta = context.obtainStyledAttributes(attrs)
-        mZeroCountColor = ta.getColor(0, context.getColor(R.color.black))
-        mNewCountColor = ta.getColor(1, context.getColor(R.color.black))
-        mLearnCountColor = ta.getColor(2, context.getColor(R.color.black))
-        mReviewCountColor = ta.getColor(3, context.getColor(R.color.black))
-        mRowCurrentDrawable = ta.getResourceId(4, 0)
-        mDeckNameDefaultColor = ta.getColor(5, context.getColor(R.color.black))
-        mDeckNameDynColor = ta.getColor(6, context.getColor(R.color.material_blue_A700))
-        mExpandImage = ta.getDrawable(7)
-        mExpandImage!!.isAutoMirrored = true
-        mCollapseImage = ta.getDrawable(8)
-        mCollapseImage!!.isAutoMirrored = true
+        val attrs =
+            intArrayOf(
+                R.attr.zeroCountColor,
+                R.attr.newCountColor,
+                R.attr.learnCountColor,
+                R.attr.reviewCountColor,
+                R.attr.currentDeckBackground,
+                android.R.attr.textColor,
+                R.attr.dynDeckColor,
+                R.attr.expandRef,
+                R.attr.collapseRef,
+            )
+        var ta = context.obtainStyledAttributes(attrs)
+        zeroCountColor = ta.getColor(0, context.getColor(R.color.black))
+        newCountColor = ta.getColor(1, context.getColor(R.color.black))
+        learnCountColor = ta.getColor(2, context.getColor(R.color.black))
+        reviewCountColor = ta.getColor(3, context.getColor(R.color.black))
+        rowCurrentDrawable = ta.getResourceId(4, 0)
+        deckNameDefaultColor = ta.getColor(5, context.getColor(R.color.black))
+        deckNameDynColor = ta.getColor(6, context.getColor(R.color.material_blue_A700))
+        expandImage = ta.getDrawableOrThrow(7)
+        expandImage.isAutoMirrored = true
+        collapseImage = ta.getDrawableOrThrow(8)
+        collapseImage.isAutoMirrored = true
+        ta.recycle()
+        ta = context.obtainStyledAttributes(intArrayOf(android.R.attr.selectableItemBackground))
+        selectableItemBackground = ta.getResourceId(0, 0)
         ta.recycle()
     }
 }
+
+private val deckNodeDiffCallback =
+    object : DiffUtil.ItemCallback<DeckNode>() {
+        override fun areItemsTheSame(
+            oldItem: DeckNode,
+            newItem: DeckNode,
+        ): Boolean = oldItem.did == newItem.did
+
+        override fun areContentsTheSame(
+            oldItem: DeckNode,
+            newItem: DeckNode,
+        ): Boolean =
+            oldItem.did == newItem.did &&
+                oldItem.filtered == newItem.filtered &&
+                oldItem.fullDeckName == newItem.fullDeckName &&
+                oldItem.newCount == newItem.newCount &&
+                oldItem.lrnCount == newItem.lrnCount &&
+                oldItem.revCount == newItem.revCount
+    }

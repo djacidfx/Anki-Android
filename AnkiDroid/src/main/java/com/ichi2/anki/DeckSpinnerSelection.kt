@@ -21,14 +21,22 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.annotation.LayoutRes
+import androidx.annotation.MainThread
 import androidx.appcompat.app.ActionBar
+import androidx.appcompat.app.AppCompatActivity
+import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.dialogs.DeckSelectionDialog
+import com.ichi2.anki.dialogs.DeckSelectionDialog.DeckCreationListener
 import com.ichi2.anki.dialogs.DeckSelectionDialog.SelectableDeck
 import com.ichi2.anki.dialogs.DeckSelectionDialog.SelectableDeck.Companion.fromCollection
+import com.ichi2.anki.utils.showDialogFragmentImpl
 import com.ichi2.anki.widgets.DeckDropDownAdapter
-import com.ichi2.libanki.*
 import com.ichi2.libanki.Collection
+import com.ichi2.libanki.DeckId
+import com.ichi2.libanki.DeckNameId
 import com.ichi2.utils.FragmentManagerSupplier
+import com.ichi2.utils.KotlinCleanup
 import com.ichi2.utils.asFragmentManagerSupplier
 import timber.log.Timber
 
@@ -42,83 +50,121 @@ import timber.log.Timber
  * The spinner displayed in the activity.
  * Empty at construction. After initialization, it contains in this order:
  * 1. "All decks" if [showAllDecks] is true
- * 2. All decks from [mAllDeckIds].
+ * 2. All decks from [dropDownDecks].
  * @param showAllDecks Whether the deck selection should allow "All Decks" as an option
  * @param alwaysShowDefault If true, never hide the default deck. If false, match [DeckPicker]'s logic
  * @param showFilteredDecks whether to show filtered decks
  */
+@KotlinCleanup(
+    "this class is a mess: showAllDecks, AND the adapter seems overly complicated as " +
+        "only the selected item is visible",
+)
 class DeckSpinnerSelection(
-    private val context: AnkiActivity,
-    private val collection: Collection,
+    private val context: AppCompatActivity,
     private val spinner: Spinner,
     private val showAllDecks: Boolean,
     private val alwaysShowDefault: Boolean,
-    private val showFilteredDecks: Boolean
+    private val showFilteredDecks: Boolean,
+    private val fragmentManagerSupplier: FragmentManagerSupplier = context.asFragmentManagerSupplier(),
 ) {
-    /**
-     * All of the decks shown to the user.
-     */
-    private lateinit var mAllDeckIds: ArrayList<Long>
+    private var deckDropDownAdapter: DeckDropDownAdapter? = null
 
-    private val mFragmentManagerSupplier: FragmentManagerSupplier = context.asFragmentManagerSupplier()
+    // This should be deckDropDownAdapter.decks
+    // but this class also handles initializeNoteEditorDeckSpinner, so this can't happen yet
+    private var dropDownDecks: MutableList<DeckNameId>? = null
 
-    private lateinit var dropDownDecks: List<DeckNameId>
-    private var mDeckDropDownAdapter: DeckDropDownAdapter? = null
-
-    fun initializeActionBarDeckSpinner(actionBar: ActionBar) {
+    @MainThread // spinner.adapter
+    fun initializeActionBarDeckSpinner(
+        col: Collection,
+        actionBar: ActionBar,
+    ) {
         actionBar.setDisplayShowTitleEnabled(false)
 
         // Add drop-down menu to select deck to action bar.
-        dropDownDecks = computeDropDownDecks(includeFiltered = showFilteredDecks)
-        mAllDeckIds = ArrayList(dropDownDecks.size)
-        for (d in dropDownDecks) {
-            val thisDid = d.id
-            mAllDeckIds.add(thisDid)
+        computeDropDownDecks(col, includeFiltered = showFilteredDecks).toMutableList().let {
+            dropDownDecks = it
+            deckDropDownAdapter = DeckDropDownAdapter(context, it)
+            spinner.adapter = deckDropDownAdapter
+            setSpinnerListener()
         }
-        mDeckDropDownAdapter = DeckDropDownAdapter(context, dropDownDecks)
-        spinner.adapter = mDeckDropDownAdapter
-        setSpinnerListener()
     }
 
-    fun initializeNoteEditorDeckSpinner() {
-        dropDownDecks = computeDropDownDecks(includeFiltered = false)
-        val deckNames = ArrayList<String>(dropDownDecks.size)
-        mAllDeckIds = ArrayList(dropDownDecks.size)
-        for (d in dropDownDecks) {
-            val currentName = d.name
-            deckNames.add(currentName)
-            mAllDeckIds.add(d.id)
+    @MainThread // spinner.adapter
+    suspend fun initializeStatsBarDeckSpinner() {
+        withCol {
+            decks.allNamesAndIds(includeFiltered = showFilteredDecks, skipEmptyDefault = true)
+        }.toMutableList().let {
+            dropDownDecks = it
+            // custom implementation as DeckDropDownAdapter automatically includes a ALL_DECKS entry +
+            // in order for the spinner to wrap the content a row layout with wrap_content for root
+            // width was introduced
+            spinner.adapter =
+                object : ArrayAdapter<DeckNameId>(
+                    context,
+                    R.layout.item_stats_deck,
+                    it,
+                ) {
+                    override fun getView(
+                        position: Int,
+                        convertView: View?,
+                        parent: ViewGroup,
+                    ): View {
+                        val rowView = super.getView(position, convertView, parent)
+                        rowView.findViewById<TextView>(R.id.title).text = getItem(position)!!.name
+                        return rowView
+                    }
+                }.apply { setDropDownViewResource(android.R.layout.simple_spinner_item) }
+            setSpinnerListener()
         }
-        val noteDeckAdapter: ArrayAdapter<String?> = object : ArrayAdapter<String?>(context, R.layout.multiline_spinner_item, deckNames as List<String?>) {
-            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                // Cast the drop down items (popup items) as text view
-                val tv = super.getDropDownView(position, convertView, parent) as TextView
+    }
 
-                // If this item is selected
-                if (position == spinner.selectedItemPosition) {
-                    tv.setBackgroundColor(context.getColor(R.color.note_editor_selected_item_background))
-                    tv.setTextColor(context.getColor(R.color.note_editor_selected_item_text))
+    @MainThread // spinner.adapter
+    fun initializeNoteEditorDeckSpinner(
+        col: Collection,
+        @LayoutRes layoutResource: Int = R.layout.multiline_spinner_item,
+    ) {
+        computeDropDownDecks(col, includeFiltered = false).toMutableList().let {
+            dropDownDecks = it
+            val deckNames = it.map { it.name }
+            val noteDeckAdapter: ArrayAdapter<String?> =
+                object :
+                    ArrayAdapter<String?>(context, layoutResource, deckNames as List<String?>) {
+                    override fun getDropDownView(
+                        position: Int,
+                        convertView: View?,
+                        parent: ViewGroup,
+                    ): View {
+                        // Cast the drop down items (popup items) as text view
+                        val tv = super.getDropDownView(position, convertView, parent) as TextView
+
+                        // If this item is selected
+                        if (position == spinner.selectedItemPosition) {
+                            tv.setBackgroundColor(context.getColor(R.color.note_editor_selected_item_background))
+                            tv.setTextColor(context.getColor(R.color.note_editor_selected_item_text))
+                        }
+
+                        // Return the modified view
+                        return tv
+                    }
                 }
-
-                // Return the modified view
-                return tv
-            }
+            spinner.adapter = noteDeckAdapter
+            setSpinnerListener()
         }
-        spinner.adapter = noteDeckAdapter
-        setSpinnerListener()
     }
 
-    /**
-     * @return All decks.
-     */
-    fun computeDropDownDecks(includeFiltered: Boolean): List<DeckNameId> {
-        return collection.decks.allNamesAndIds(includeFiltered = includeFiltered)
-    }
+    /** @return All decks.  */
+    suspend fun computeDropDownDecks(includeFiltered: Boolean): List<DeckNameId> = withCol { computeDropDownDecks(this, includeFiltered) }
+
+    /** @return All decks. */
+    private fun computeDropDownDecks(
+        col: Collection,
+        includeFiltered: Boolean,
+    ): List<DeckNameId> = col.decks.allNamesAndIds(includeFiltered = includeFiltered)
 
     private fun setSpinnerListener() {
         spinner.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
             if (motionEvent.action == MotionEvent.ACTION_UP) {
-                displayDeckSelectionDialog(collection)
+                context.launchCatchingTask { displayDeckSelectionDialog() }
             }
             true
         }
@@ -131,7 +177,8 @@ class DeckSpinnerSelection(
      * @param deckId The ID of the deck to select
      */
     fun updateDeckPosition(deckId: DeckId) {
-        val position = mAllDeckIds.indexOf(deckId)
+        // TODO: This doesn't handle ALL_DECKS
+        val position = dropDownDecks?.map { it.id }?.indexOf(deckId) ?: -1
         if (position != -1) {
             spinner.setSelection(position)
         } else {
@@ -140,7 +187,7 @@ class DeckSpinnerSelection(
     }
 
     fun notifyDataSetChanged() {
-        mDeckDropDownAdapter!!.notifyDataSetChanged()
+        deckDropDownAdapter!!.notifyDataSetChanged()
     }
 
     fun setEnabledActionBarSpinner(enabled: Boolean) {
@@ -160,13 +207,15 @@ class DeckSpinnerSelection(
      * the current deck id of Collection.
      * @return True if selection succeeded.
      */
-    fun selectDeckById(deckId: DeckId, setAsCurrentDeck: Boolean): Boolean {
-        return if (deckId == ALL_DECKS_ID) {
+    suspend fun selectDeckById(
+        deckId: DeckId,
+        setAsCurrentDeck: Boolean,
+    ): Boolean =
+        if (deckId == ALL_DECKS_ID || this.dropDownDecks == null) {
             selectAllDecks()
         } else {
             selectDeck(deckId, setAsCurrentDeck)
         }
-    }
 
     /**
      * select in the spinner deck with id
@@ -174,18 +223,17 @@ class DeckSpinnerSelection(
      * @param setAsCurrentDeck whether this deck should be selected in the collection (if it exists)
      * @return whether it was found
      */
-    private fun selectDeck(deckId: DeckId, setAsCurrentDeck: Boolean): Boolean {
-        for (dropDownDeckIdx in mAllDeckIds.indices) {
-            if (mAllDeckIds[dropDownDeckIdx] == deckId) {
-                val position = if (showAllDecks) dropDownDeckIdx + 1 else dropDownDeckIdx
-                spinner.setSelection(position)
-                if (setAsCurrentDeck) {
-                    collection.decks.select(deckId)
-                }
-                return true
-            }
+    private suspend fun selectDeck(
+        deckId: DeckId,
+        setAsCurrentDeck: Boolean,
+    ): Boolean {
+        val deck = this.dropDownDecks?.withIndex()?.firstOrNull { it.value.id == deckId } ?: return false
+        val position = if (showAllDecks) deck.index + 1 else deck.index
+        spinner.setSelection(position)
+        if (setAsCurrentDeck) {
+            withCol { decks.select(deckId) }
         }
-        return false
+        return true
     }
 
     /**
@@ -194,7 +242,10 @@ class DeckSpinnerSelection(
      */
     fun selectAllDecks(): Boolean {
         if (!showAllDecks) {
-            CrashReportService.sendExceptionReport("selectAllDecks was called while `showAllDecks is false`", "DeckSpinnerSelection:selectAllDecks")
+            CrashReportService.sendExceptionReport(
+                "selectAllDecks was called while `showAllDecks is false`",
+                "DeckSpinnerSelection:selectAllDecks",
+            )
             return false
         }
         spinner.setSelection(0)
@@ -204,13 +255,21 @@ class DeckSpinnerSelection(
     /**
      * Displays a [DeckSelectionDialog]
      */
-    fun displayDeckSelectionDialog(col: Collection?) {
-        val decks = fromCollection(col!!, includeFiltered = false).toMutableList()
+    suspend fun displayDeckSelectionDialog() {
+        val decks = fromCollection(includeFiltered = showFilteredDecks).toMutableList()
         if (showAllDecks) {
             decks.add(SelectableDeck(ALL_DECKS_ID, context.resources.getString(R.string.card_browser_all_decks)))
         }
         val dialog = DeckSelectionDialog.newInstance(context.getString(R.string.search_deck), null, false, decks)
-        AnkiActivity.showDialogFragment(mFragmentManagerSupplier.getFragmentManager(), dialog)
+        // TODO: retain state after onDestroy
+        dialog.deckCreationListener = DeckCreationListener { onDeckAdded(it) }
+        showDialogFragmentImpl(fragmentManagerSupplier.getFragmentManager(), dialog)
+    }
+
+    private fun onDeckAdded(deck: DeckNameId) {
+        Timber.d("added deck %s to spinner", deck)
+        deckDropDownAdapter?.addDeck(deck)
+        dropDownDecks?.add(deck)
     }
 
     companion object {

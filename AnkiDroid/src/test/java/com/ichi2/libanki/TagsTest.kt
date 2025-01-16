@@ -17,49 +17,48 @@ package com.ichi2.libanki
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.testutils.JvmTest
-import junit.framework.TestCase.*
+import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
+import junit.framework.TestCase.assertTrue
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TagsTest : JvmTest() {
-
     @Test
     fun test_split() {
-        val col = col
         val tags = Tags(col)
-        val tags_list1 = ArrayList<String>()
-        tags_list1.add("Todo")
-        tags_list1.add("todo")
-        tags_list1.add("Needs revision")
+        val tagsList1 = ArrayList<String>()
+        tagsList1.add("Todo")
+        tagsList1.add("todo")
+        tagsList1.add("Needs revision")
 
-        val tags_list2 = ArrayList<String>()
-        tags_list2.add("Todo")
-        tags_list2.add("todo")
-        tags_list2.add("Needs")
-        tags_list2.add("Revision")
+        val tagsList2 = ArrayList<String>()
+        tagsList2.add("Todo")
+        tagsList2.add("todo")
+        tagsList2.add("Needs")
+        tagsList2.add("Revision")
 
-        assertNotEquals(tags_list1, tags.split("Todo todo Needs Revision"))
-        assertEquals(tags_list2, tags.split("Todo todo Needs Revision"))
+        assertNotEquals(tagsList1, tags.split("Todo todo Needs Revision"))
+        assertEquals(tagsList2, tags.split("Todo todo Needs Revision"))
         assertEquals(0, tags.split("").size)
     }
 
     @Test
     fun test_in_list() {
-        val col = col
         val tags = Tags(col)
 
-        val tags_list = ArrayList<String>()
-        tags_list.add("Todo")
-        tags_list.add("Needs revision")
-        tags_list.add("Once more")
-        tags_list.add("test1 content")
+        val tagsList = ArrayList<String>()
+        tagsList.add("Todo")
+        tagsList.add("Needs revision")
+        tagsList.add("Once more")
+        tagsList.add("test1 content")
 
-        assertFalse(tags.inList("Done", tags_list))
-        assertTrue(tags.inList("Needs revision", tags_list))
-        assertTrue(tags.inList("once More", tags_list))
-        assertFalse(tags.inList("test1Content", tags_list))
+        assertFalse(tags.inList("Done", tagsList))
+        assertTrue(tags.inList("Needs revision", tagsList))
+        assertTrue(tags.inList("once More", tagsList))
+        assertFalse(tags.inList("test1Content", tagsList))
         assertFalse(tags.inList("", ArrayList()))
     }
 }

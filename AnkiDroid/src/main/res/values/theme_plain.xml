@@ -6,11 +6,12 @@
     <color name="theme_plain_accent">#607D8B</color>
     <color name="theme_plain_primary_text">#212121</color>
 
-    <style name="Theme_Light.Plain">
+    <style name="Base.Theme.Light.Plain">
         <!-- Android colors -->
         <item name="colorPrimary">@color/theme_plain_primary</item>
         <item name="colorPrimaryDark">@color/theme_plain_primary_dark</item>
         <item name="colorAccent">@color/theme_plain_accent</item>
+        <item name="colorSurfaceContainer">#0F9E9E9E</item>
         <item name="android:textColor">@color/text_color_light</item>
         <item name="android:textColorSecondary">@color/text_color_secondary_light</item>
         <item name="preferenceCategoryTitleTextColor">?attr/colorAccent</item>
@@ -21,9 +22,11 @@
         <item name="actionModeBackground">@color/theme_plain_primary</item>
         <!-- Tab layout -->
         <item name="tabLayoutBackgroundColor">@color/theme_plain_primary</item>
+        <item name="tabActiveIconColor">@color/white</item>
         <!-- Reviewer colors -->
         <item name="topBarColor">@color/theme_plain_primary_light</item>
         <!-- Reviewer button drawables -->
+        <item name="showAnswerColor">@color/theme_plain_primary</item>
         <item name="againButtonRef">@drawable/footer_button_all_plain</item>
         <item name="hardButtonRef">@drawable/footer_button_all_plain</item>
         <item name="goodButtonRef">@drawable/footer_button_all_plain</item>
@@ -33,7 +36,7 @@
         <item name="goodButtonRippleRef">@drawable/footer_button_all_plain_ripple</item>
         <item name="easyButtonRippleRef">@drawable/footer_button_all_plain_ripple</item>
         <!-- Card Browser Colors -->
-        <item name="cardBrowserDivider">?attr/dividerHorizontal</item>
+        <item name="cardBrowserDivider">#CCCCCC</item>
         <!-- Note editor colors -->
         <item name="editTextBackgroundColor">#EBCCCCCC</item>
         <item name="toolbarBackgroundColor">#D6D7D7</item>
@@ -55,9 +58,6 @@
 
         <item name="currentDeckBackground">@drawable/item_background_selected</item>
 
-        <!--Dialog-->
-        <item name="md_color_button_text">@color/black</item>
-
         <item name="snackbarButtonTextColor">#96bdce</item>
 
         <!-- Introduction -->
@@ -68,5 +68,9 @@
 
         <!-- ProgressDialog-->
         <item name="dialogBackground">@color/white</item>
+        <item name="progressDialogButtonTextColor">@color/theme_plain_primary</item>
+
     </style>
+
+    <style name="Theme_Light.Plain" parent="Base.Theme.Light.Plain"/>
 </resources>

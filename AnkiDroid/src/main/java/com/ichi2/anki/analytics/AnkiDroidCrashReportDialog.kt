@@ -37,10 +37,13 @@ import org.acra.dialog.CrashReportDialogHelper
  * See [AnkiDroid Wiki: Crash-Reports](https://github.com/ankidroid/Anki-Android/wiki/Crash-Reports)
  */
 @SuppressLint("Registered") // we are sufficiently registered in this special case
-class AnkiDroidCrashReportDialog : CrashReportDialog(), DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
-    private var mAlwaysReportCheckBox: CheckBox? = null
-    private var mUserComment: EditText? = null
-    private var mHelper: CrashReportDialogHelper? = null
+class AnkiDroidCrashReportDialog :
+    CrashReportDialog(),
+    DialogInterface.OnClickListener,
+    DialogInterface.OnDismissListener {
+    private var alwaysReportCheckBox: CheckBox? = null
+    private var userComment: EditText? = null
+    private var helper: CrashReportDialogHelper? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +52,7 @@ class AnkiDroidCrashReportDialog : CrashReportDialog(), DialogInterface.OnClickL
         dialogBuilder.setTitle(R.string.feedback_title)
         dialogBuilder.setPositiveButton(getString(R.string.feedback_report), this@AnkiDroidCrashReportDialog)
         dialogBuilder.setNegativeButton(R.string.dialog_cancel, this@AnkiDroidCrashReportDialog)
-        mHelper = CrashReportDialogHelper(this, intent)
+        helper = CrashReportDialogHelper(this, intent)
         dialogBuilder.setView(buildCustomView(savedInstanceState))
         val dialog = dialogBuilder.create()
         dialog.setCanceledOnTouchOutside(false)
@@ -67,23 +70,26 @@ class AnkiDroidCrashReportDialog : CrashReportDialog(), DialogInterface.OnClickL
         @SuppressLint("InflateParams")
         val rootView = // when you inflate into an alert dialog, you have no parent view
             inflater.inflate(R.layout.feedback, null)
-        mAlwaysReportCheckBox = rootView.findViewById(R.id.alwaysReportCheckbox)
-        mAlwaysReportCheckBox?.isChecked = preferences.getBoolean("autoreportCheckboxValue", true)
-        mUserComment = rootView.findViewById(R.id.etFeedbackText)
+        alwaysReportCheckBox = rootView.findViewById(R.id.alwaysReportCheckbox)
+        alwaysReportCheckBox?.isChecked = preferences.getBoolean("autoreportCheckboxValue", true)
+        userComment = rootView.findViewById(R.id.etFeedbackText)
         // Set user comment if reloading after the activity has been stopped
         if (savedInstanceState != null) {
             val savedValue = savedInstanceState.getString(STATE_COMMENT)
             if (savedValue != null) {
-                mUserComment?.setText(savedValue)
+                userComment?.setText(savedValue)
             }
         }
         return rootView
     }
 
-    override fun onClick(dialog: DialogInterface, which: Int) {
+    override fun onClick(
+        dialog: DialogInterface,
+        which: Int,
+    ) {
         if (which == DialogInterface.BUTTON_POSITIVE) {
             // Next time don't tick the auto-report checkbox by default
-            val autoReport = mAlwaysReportCheckBox!!.isChecked
+            val autoReport = alwaysReportCheckBox!!.isChecked
             val preferences = this.sharedPrefs()
             preferences.edit { putBoolean("autoreportCheckboxValue", autoReport) }
             // Set the autoreport value to true if ticked
@@ -91,20 +97,20 @@ class AnkiDroidCrashReportDialog : CrashReportDialog(), DialogInterface.OnClickL
                 preferences.edit {
                     putString(
                         CrashReportService.FEEDBACK_REPORT_KEY,
-                        CrashReportService.FEEDBACK_REPORT_ALWAYS
+                        CrashReportService.FEEDBACK_REPORT_ALWAYS,
                     )
                 }
                 CrashReportService.setAcraReportingMode(CrashReportService.FEEDBACK_REPORT_ALWAYS)
             }
             // Send the crash report
-            mHelper!!.sendCrash(mUserComment!!.text.toString(), "")
+            helper!!.sendCrash(userComment!!.text.toString(), "")
         } else {
             // If the user got to the dialog, they were not limited.
             // The limiter persists it's limit info *before* the user cancels.
             // Therefore, on cancel, purge limits to make sure the user may actually send in future.
             // Better to maybe send to many reports than definitely too few.
             CrashReportService.deleteACRALimiterData(this)
-            mHelper!!.cancelReports()
+            helper!!.cancelReports()
         }
         finish()
     }
@@ -115,8 +121,8 @@ class AnkiDroidCrashReportDialog : CrashReportDialog(), DialogInterface.OnClickL
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        if (mUserComment != null && mUserComment!!.text != null) {
-            outState.putString(STATE_COMMENT, mUserComment!!.text.toString())
+        if (userComment != null && userComment!!.text != null) {
+            outState.putString(STATE_COMMENT, userComment!!.text.toString())
         }
     }
 

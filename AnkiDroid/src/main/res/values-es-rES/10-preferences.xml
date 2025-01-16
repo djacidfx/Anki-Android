@@ -46,12 +46,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- generic strings -->
     <string name="disabled">Deshabilitado</string>
-    <string name="pref_summary_seconds">%s s</string>
     <plurals name="pref_summ_minutes">
         <item quantity="one">%d min</item>
         <item quantity="other">%d mins</item>
     </plurals>
-    <string comment="Percentage value of a preference. %s represents the number to be replaced. Use \%% to represent a single percent sign (%)" name="pref_summary_percentage">%s\%%</string>
+    <string name="pref_milliseconds">%s ms</string>
+    <!-- TODO: move to 20-search-preference so we can contribute upstream (searchpreference_no_results)-->
     <string name="pref_search_no_results">Sin resultados</string>
     <!-- preferences.xml categories-->
     <string name="pref_cat_general" comment="name of the general preference category" maxLength="41">General</string>
@@ -63,7 +63,6 @@
     <string name="pref_cat_whiteboard" maxLength="41">Pizarra</string>
     <string name="pref_cat_appearance" maxLength="41">Apariencia</string>
     <string name="pref_cat_themes" maxLength="41">Temas</string>
-    <string name="pref_cat_fonts" maxLength="41">Fuentes</string>
     <string name="pref_cat_gestures" maxLength="41">Gestos</string>
     <string name="pref_cat_controls" maxLength="41">Controles</string>
     <string name="pref_cat_advanced" maxLength="41">Avanzado</string>
@@ -100,7 +99,7 @@
     <string name="gestures_corner_touch_summary">Permitir gestos táctiles en las esquinas de pantalla</string>
     <string name="gestures_full_screen_nav_drawer" maxLength="41">Panel de navegación a pantalla completa</string>
     <string name="gestures_fullscreen_nav_drawer_summary">Abrir el cajón de navegación cuando se desliza a la derecha desde cualquier lugar de la pantalla</string>
-    <string name="gestures_none" maxLength="41">Ninguno</string>
+    <string name="gestures_none" maxLength="41" comment="No gestures">Ninguno</string>
     <string name="gestures_swipe_up" maxLength="41">Deslizar hacia arriba</string>
     <string name="gestures_swipe_down" maxLength="41">Deslizar hacia abajo</string>
     <string name="gestures_swipe_left" maxLength="41">Deslizar hacia la izquierda</string>
@@ -116,7 +115,7 @@
     <string name="gestures_corner_tap_middle_center" maxLength="41">Tocar el centro</string>
     <string name="gestures_corner_tap_bottom_left" maxLength="41">Tocar abajo a la izquierda</string>
     <string name="gestures_corner_tap_bottom_right" maxLength="41">Tocar abajo a la derecha</string>
-    <string name="gestures_shake" maxLength="41">Shake device</string>
+    <string name="gestures_shake" maxLength="41">Agitar el dispositivo</string>
     <string name="card_browser_enable_external_context_menu">Menú ‘%s’</string>
     <string name="card_browser_enable_external_context_menu_summary">Habilita globalmente el menú contextual ‘%s</string>
     <string name="double_scrolling_gap" maxLength="41">Desplazamiento doble</string>
@@ -151,11 +150,6 @@
     <string name="notification_minimum_cards_due">Más de %d tarjetas vencidas</string>
     <string name="notification_minimum_cards_due_vibrate" maxLength="41">Vibración</string>
     <string name="notification_minimum_cards_due_blink" maxLength="41">Parpadeo de luz</string>
-    <string name="timeout_answer_text" maxLength="41">Visualización automática de la respuesta</string>
-    <string name="timeout_answer" maxLength="41">Tiempo de respuesta agotado</string>
-    <string name="timeout_answer_summ">Mostrar respuesta automáticamente sin intervención del usuario. El retraso incluye tiempo para reproduciones automáticas de archivos de audio.</string>
-    <string name="timeout_answer_seconds" maxLength="41">Tiempo para mostrar respuesta</string>
-    <string name="timeout_question_seconds" maxLength="41">Tiempo para mostrar la siguiente pregunta</string>
     <string name="select_locale_title">Selecciona idioma</string>
     <string name="software_render" maxLength="41">Deshabilitar el procesamiento de hardware de la tarjeta</string>
     <string name="software_render_summ">El procesamiento de hardware es más rápido, pero puede tener problemas, específicamente en Android 8/8.1. Si no puede ver partes de la interfaz de usuario de la tarjeta, prueba esta opción.</string>
@@ -168,20 +162,21 @@
     <string name="vertical_centering_summ">Centra verticalmente el contenido de las tarjetas</string>
     <string name="pref_double_tap_time_interval" maxLength="41">Intervalo de tiempo de doble toque (ms)</string>
     <string name="pref_double_tap_time_interval_summary">Un segundo toque de los botones de respuesta será ignorado si este tiempo no ha transcurrido. Esto previene doble toque accidental.</string>
-    <string name="pref_show_answer_long_press" maxLength="41">Mostrar respuesta - pulsación larga (ms)</string>
-    <string name="pref_show_answer_long_press_summary">Tiempo mínimo de pulsación prolongada antes de que el botón Mostrar respuesta registre una pulsación. Puede reducir la posibilidad de pulsaciones adicionales accidentales. Por defecto es 0ms</string>
+    <string name="pref_show_answer_long_press_time" maxLength="41">Tiempo de pulsación larga para mostrar respuesta</string>
+    <string name="pref_show_answer_long_press_time_summary">Tiempo mínimo de pulsación antes de que el botón Mostrar Respuesta registre un toque.</string>
     <string name="show_estimates" maxLength="41">Mostrar botón tiempo</string>
     <string name="show_estimates_summ">Mostrar el próximo repaso en los botones de respuesta</string>
     <string name="show_large_answer_buttons" maxLength="41">Mostrar botones de respuestas grandes</string>
     <string name="show_large_answer_buttons_summ">Mostrar botón de respuesta en 2 filas</string>
     <string name="show_top_bar" maxLength="41">Mostrar Barra Superior</string>
-    <string name="show_top_bar_summ">Mostrar recuento de tarjetas, banderas y marcas en la barra superior</string>
+    <string name="show_top_bar_summary">Mostrar recuento de cartas, temporizador de respuesta, bandera y marca en la barra superior</string>
     <string name="show_progress" maxLength="41">Mostrar restante</string>
     <string name="show_progress_summ">Mostrar contador de tarjetas restantes</string>
+    <string name="show_eta" maxLength="41">Mostrar tiempo restante</string>
+    <string name="show_eta_summ">Mostrar tiempo restante</string>
     <string name="use_current" maxLength="41">Mazo para las nuevas tarjetas</string>
     <string name="learn_cutoff" maxLength="41">Aprender por delante del límite</string>
     <string name="time_limit" maxLength="41">Límite de tiempo del Timebox</string>
-    <string name="new_timezone" maxLength="41">Nuevo manejo de zona horaria</string>
     <string name="day_offset_with_description" maxLength="41">Comienzo del día siguiente (0 es medianoche, 23 es 11PM)</string>
     <plurals name="day_offset_summ" comment="%d is going to be replaced with the number of hours past midnight. It can be replaced if something else suits better the translation">
         <item quantity="one">%d hora después de medianoche</item>
@@ -201,10 +196,9 @@
     <string name="reset">Restablecer</string>
     <string name="thirdparty_apps_title" maxLength="41">Aplicaciones API de terceros</string>
     <string name="thirdparty_apps_summary">Vea una lista de aplicaciones que hacen uso de la API de AnkiDroid como diccionarios, utilidades.</string>
-    <string name="html_javascript_debugging" maxLength="41">Depuración de HTML / Javascript</string>
-    <string name="html_javascript_debugging_summ">Habilitar conexiones remotas de WebView y guardar el HTML de la tarjeta en el directorio AnkiDroid</string>
     <!-- Appearance settings -->
     <string name="pref_cat_reviewer" maxLength="41">Revisor</string>
+    <string name="show_deck_title" maxLength="41">Mostrar el título del mazo</string>
     <string name="accessibility" maxLength="41">Accesibilidad</string>
     <!-- Paste clipboard image as png option -->
     <string name="paste_as_png" maxLength="41">Pegar imágenes del portapapeles como PNG</string>
@@ -223,11 +217,12 @@
         <a href="%s">Más información</a>
         ]]></string>
     <string name="custom_sync_server_base_url_title" maxLength="41">Url de sincronización</string>
+    <string name="custom_sync_certificate_title" maxLength="41">Certificado raíz personalizado (PEM)</string>
     <!-- Key Bindings -->
     <string name="keyboard">Teclado</string>
     <string name="bluetooth">Bluetooth</string>
     <string name="answer_buttons" maxLength="41">Botones de respuesta</string>
-    <string name="card" maxLength="41">Tarjeta</string>
+    <string name="card" maxLength="41" comment="Generic term to refer to a card">Tarjeta</string>
     <string name="note" maxLength="41">Nota</string>
     <string name="navigation" maxLength="41">Navegación</string>
     <string name="media" maxLength="41">Multimedia</string>
@@ -238,22 +233,21 @@
     <string name="deck_conf_general" maxLength="41" comment="Label of the submenu for the general options of new deck">General</string>
     <string name="deck_conf_reminders" maxLength="41">Recordatorios</string>
     <string name="deck_conf_cram_filter" maxLength="41">Filtrar</string>
-    <string name="deck_conf_cram_search" maxLength="41">Buscar</string>
+    <string name="deck_conf_cram_search" maxLength="41" comment="Label of a text field that contains a search query.">Buscar</string>
     <string name="deck_conf_cram_limit" maxLength="41">Limitar a</string>
-    <string name="deck_conf_cram_order" maxLength="41">tarjetas seleccionadas por</string>
+    <string name="deck_conf_cram_order" maxLength="41">Tarjetas seleccionadas por</string>
     <string name="deck_conf_cram_reschedule" maxLength="41" comment="Title of the box labelled by deck_conf_cram_reschedule_summ">Reprogramar</string>
     <string name="deck_conf_cram_reschedule_summ">Reprogramar tarjetas en base a mis respuestas en este mazo</string>
     <string name="deck_conf_cram_filter_2_check">Activar segundo filtro</string>
-    <string name="deck_conf_cram_steps" maxLength="41">Pasos personalizados (en minutos)</string>
     <string name="deck_conf_cram_steps_summ" maxLength="41">Definir pasos personalizados</string>
+    <string name="deck_conf_cram_preview_delays" maxLength="41">Previsualizar los retrasos</string>
+    <string name="deck_conf_cram_preview_delays_summ">Los retrasos se expresan en segundos. 0 devuelve la tarjeta al mazo original.</string>
     <!-- analytics options -->
     <string name="analytics_dialog_title">¡Ayuda a mejorar AnkiDroid!</string>
     <string name="analytics_title" maxLength="41">Compartir uso de funciones</string>
     <string name="analytics_summ">Puedes contribuir a AnkiDroid ayudando al equipo de desarrollo a ver qué características usan las personas</string>
     <string name="note_editor_replace_newlines" maxLength="41">Reemplazar nuevas líneas con HTML</string>
     <string name="note_editor_replace_newlines_summ">En el editor de notas, convierte cualquier instancia de &lt;br&gt; a nuevas líneas al editar una tarjeta.</string>
-    <string name="no_code_formatting" maxLength="41">Formato de respuesta simple</string>
-    <string name="no_code_formatting_summ">Corregir ‘􏿾’ al aspecto de respuesta tipográfica</string>
     <string name="type_in_answer_focus" maxLength="41">Enfoque \"escribe la respuesta\"</string>
     <string name="type_in_answer_focus_summ">Enfocar automáticamente el campo \"escribir en respuesta\" en el revisor</string>
     <!-- About -->
@@ -270,13 +264,25 @@
     <string name="binding_add_key">Añadir botón</string>
     <string name="binding_replace_key">Reemplazar clave</string>
     <string name="key_picker_default_press_key">Presione una tecla</string>
-    <string name="binding_add_axis">Add joystick/motion controller</string>
-    <string name="axis_picker_move_joystick">Move a joystick/motion controller</string>
+    <string name="binding_add_axis">Añadir joystick/controlador de movimiento</string>
+    <string name="axis_picker_move_joystick">Mueve un joystick/controlador de movimiento</string>
+    <string name="user_actions" maxLength="41">Acciones del usuario</string>
+    <string name="user_actions_summary" maxLength="41">Activar JavaScript desde la pantalla de revisión</string>
+    <string name="user_action_1" maxLength="28">Acción del usuario 1</string>
+    <string name="user_action_2" maxLength="28">Acción del usuario 2</string>
+    <string name="user_action_3" maxLength="28">Acción del usuario 3</string>
+    <string name="user_action_4" maxLength="28">Acción del usuario 4</string>
+    <string name="user_action_5" maxLength="28">Acción del usuario 5</string>
+    <string name="user_action_6" maxLength="28">Acción del usuario 6</string>
+    <string name="user_action_7" maxLength="28">Acción del usuario 7</string>
+    <string name="user_action_8" maxLength="28">Acción del usuario 8</string>
+    <string name="user_action_9" maxLength="28">Acción del usuario 9</string>
+    <string name="toggle_auto_advance" maxLength="41">Alternar avance automático</string>
     <!-- Select card side -->
     <string name="card_side_selection_title">Selecciona el lado de la tarjeta</string>
     <string name="card_side_question">Pregunta</string>
     <string name="card_side_answer">Respuesta</string>
-    <string name="card_side_both">Preguntas y respuestas</string>
+    <string name="card_side_both" maxLength="28">Preguntas y respuestas</string>
     <string name="display_binding_card_side_question" comment="When displaying a key bind on a preference this formatter is used if the bind only applies to the question">P: %s</string>
     <string name="display_binding_card_side_answer" comment="When displaying a key bind on a preference this formatter is used if the bind only applies to the answer">R: %s</string>
     <string name="display_binding_card_side_both" comment="When displaying a key bind on a preference this formatter is used if the bind only applies to both the question and the answer">%s</string>
@@ -285,6 +291,8 @@
     <string name="bindings_already_bound">Ya vinculado a %s</string>
     <!-- Advanced -->
     <string name="pref_cat_experimental" maxLength="41" tools:ignore="UnusedResources">Experimental</string>
+    <string name="readtext_deprecation_warn">¡AnkiDroid ha introducido un mecanismo texto a voz mejor que es compatible con otros clientes Anki y que incluye más voces y mejoras de reproducción de idioma!\n\nPor favor actualice lo antes posible, ya que pronto se quitará esta configuración.</string>
+    <string name="readtext_reviewer_warn" tools:ignore="UnusedResources">Por favor actualice al formato de texto a voz nuevo.</string>
     <!-- Developer options -->
     <string name="pref_cat_dev_options" maxLength="41">Opciones de desarrollador</string>
     <string name="dev_options_enabled_pref" maxLength="41">Activar opciones de desarrollador</string>
@@ -324,13 +332,13 @@ Puedes restaurar una colección desde una copia de seguridad en el menú de la l
     <!-- Delete backups -->
     <string name="pref__delete_backups__title" maxLength="41" comment="Preference title">Eliminar copias de seguridad</string>
     <string name="dialog__delete_backups__title" comment="Title for a dialog where you can choose backups to delete">Eliminar copias de seguridad</string>
-    <string name="progress__deleting_backups">Eliminando copias de seguridad...</string>
+    <string name="progress__deleting_backups">Eliminando copias de seguridad&#8230;</string>
     <!-- Delete collection -->
     <string name="pref__delete_collection__title" maxLength="41" comment="Preference title">Eliminar colección</string>
     <string name="pref__delete_collection__summary">Eliminar colección, archivos multimedia y copias de seguridad. Los ajustes no se eliminarán</string>
     <string name="dialog__delete_collection__title" comment="Confirmation dialog title">Eliminar colección</string>
     <string name="dialog__delete_collection__message" comment="“Close the window” here refers to the activity that the user is currently seeing.        When the collection is deleted, we exit the process, which closes the activity without animation.         On some devices the entire settings app may be closed.         User might not realize that this activity comes directly from AnkiDroid,         so it might be wise to avoid words such as “AnkiDroid or “app”.">¿Estás seguro de que quieres eliminar tu colección, tus archivos multimedia y tus copias de seguridad?\n\nTen en cuenta: esta acción cerrará la ventana.</string>
-    <string name="progress__deleting_collection">Eliminando colección...</string>
+    <string name="progress__deleting_collection">Eliminando colección&#8230;</string>
     <!-- Delete everything -->
     <string name="pref__delete_everything__title" maxLength="41" comment="Preference title">Eliminar todo</string>
     <string name="pref__delete_everything__summary">Eliminar colección, archivos multimedia, copias de seguridad y ajustes</string>
@@ -350,4 +358,17 @@ Puedes restaurar una colección desde una copia de seguridad en el menú de la l
     <string name="pref__etc__snackbar__fetching" comment="Generic snackbar message to be shown when user taps on a preference,         the value of which is being fetched">Obteniendo&#8230;</string>
     <string name="pref__etc__snackbar__calculating" comment="Generic snackbar message to be shown when user taps on a preference,         the value of which, such as folder size on disk, is being calculated">Calculando&#8230;</string>
     <string name="pref__etc__snackbar__no_collection" comment="Generic snackbar message to be shown when user taps on a preference         that is not usable because the collection does not exist">La colección no existe</string>
+    <string name="hide_system_bars" maxLength="41" comment="Title of a setting that allows to hide the system bars">Ocultar barras de sistema</string>
+    <string name="hide_system_bars_none" comment="Setting option to not hide any of the system bars">Ninguna</string>
+    <string name="hide_system_bars_status_bar" comment="Setting option to hide the system status bar (the top one with clock, battery status, etc)">Barra de estado</string>
+    <string name="hide_system_bars_navigation_bar" comment="Setting option to hide the system navigation bar (the bottom one that can go back, to home, etc)">Barra de navegación</string>
+    <string name="hide_system_bars_all_bars" comment="Setting option to hide all the system bars">Todas</string>
+    <string name="ignore_display_cutout" maxLength="41">Ignorar el recorte de la pantalla</string>
+    <string name="hide_answer_buttons" maxLength="41">Ocultar botones de respuesta</string>
+    <string name="hide_hard_and_easy" maxLength="41">Ocultar los botones \"Difícil\" y \"Fácil\"</string>
+    <string name="reviewer_frame_style" maxLength="41">Frame style</string>
+    <string name="reviewer_frame_style_card" maxLength="41" comment="Style name of the \'Card\' card frame of the Reviewer">Card</string>
+    <string name="reviewer_frame_style_box" maxLength="41" comment="Style name of the \'Box\' card frame of the Reviewer">Box</string>
+    <!--Keyboard shortcuts dialog-->
+    <string name="open_settings" comment="Description of the shortcut that opens the app settings">Abrir la configuración</string>
 </resources>

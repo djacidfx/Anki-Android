@@ -24,42 +24,41 @@ import com.ichi2.libanki.Collection
 /**
  * Text Field implementation.
  */
-class TextField : FieldBase(), IField {
-    private var mText = ""
-    private var mName: String? = null
+class TextField :
+    FieldBase(),
+    IField {
+    private var _text = ""
+    private var _name: String? = null
 
     override val type: EFieldType = EFieldType.TEXT
 
     override val isModified: Boolean
         get() = thisModified
 
-    override var imagePath: String? = null
-
-    override var audioPath: String? = null
+    override var mediaPath: String? = null
 
     override var text: String?
-        get() = mText
+        get() = _text
         set(value) {
-            mText = value!!
-            setThisModified()
+            _text = value!!
+            thisModified = true
         }
 
     override var hasTemporaryMedia: Boolean = false
 
     override var name: String?
-        get() = mName
+        get() = _name
         set(value) {
-            mName = value
+            _name = value
         }
 
     override val formattedValue: String?
         get() = text
 
-    override fun setFormattedString(col: Collection, value: String) {
-        mText = value
-    }
-
-    companion object {
-        private const val serialVersionUID = -6508967905716947525L
+    override fun setFormattedString(
+        col: Collection,
+        value: String,
+    ) {
+        _text = value
     }
 }

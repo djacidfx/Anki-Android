@@ -6,17 +6,20 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.libanki.template.MathJax
 import com.ichi2.testutils.JvmTest
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.*
-import org.junit.Assert.*
+import org.hamcrest.Matchers.containsString
+import org.hamcrest.Matchers.not
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class MathJaxClozeTest : JvmTest() {
-
     @Test
     fun verifyMathJaxClozeCards() {
-        val note = addCloseNote("{{c1::ok}} \\(2^2\\) {{c2::not ok}} \\(2^{{c3::2}}\\) \\(x^3\\) {{c4::blah}} {{c5::text with \\(x^2\\) jax}}")
+        val note =
+            addClozeNote("{{c1::ok}} \\(2^2\\) {{c2::not ok}} \\(2^{{c3::2}}\\) \\(x^3\\) {{c4::blah}} {{c5::text with \\(x^2\\) jax}}")
         assertEquals(5, note.numberOfCards())
 
         val cards = note.cards()

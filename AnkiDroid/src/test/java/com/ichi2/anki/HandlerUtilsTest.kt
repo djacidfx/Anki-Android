@@ -22,7 +22,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.testutils.EmptyApplication
 import com.ichi2.utils.HandlerUtils
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.*
+import org.hamcrest.Matchers.closeTo
+import org.hamcrest.Matchers.equalTo
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -31,7 +32,6 @@ import org.robolectric.shadows.ShadowLooper.runUiThreadTasksIncludingDelayedTask
 @RunWith(AndroidJUnit4::class)
 @Config(application = EmptyApplication::class)
 class HandlerUtilsTest {
-
     @Test
     fun checkHandlerFunctionExecution() {
         var value = false

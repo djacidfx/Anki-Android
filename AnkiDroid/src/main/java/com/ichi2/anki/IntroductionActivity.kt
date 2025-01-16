@@ -17,13 +17,14 @@
 
 package com.ichi2.anki
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import com.ichi2.anki.introduction.SetupCollectionFragment
-import com.ichi2.anki.introduction.SetupCollectionFragment.*
+import com.ichi2.anki.introduction.SetupCollectionFragment.CollectionSetupOption
 import com.ichi2.anki.introduction.SetupCollectionFragment.Companion.handleCollectionSetupOption
 import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.annotations.NeedsTest
@@ -39,16 +40,16 @@ import timber.log.Timber
 // TODO: Background of introduction_layout does not display on API 25 emulator: https://github.com/ankidroid/Anki-Android/pull/12033#issuecomment-1228429130
 @NeedsTest("Ensure that we can get here on first run without an exception dialog shown")
 class IntroductionActivity : AnkiActivity() {
-
     @NeedsTest("ensure this is called when the activity ends")
-    private val onLoginResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
-        if (result.resultCode == RESULT_OK) {
-            Timber.i("login successful, opening deck picker to sync")
-            startDeckPicker(RESULT_SYNC_PROFILE)
-        } else {
-            Timber.i("login was not successful")
+    private val onLoginResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+            if (result.resultCode == RESULT_OK) {
+                Timber.i("login successful, opening deck picker to sync")
+                startDeckPicker(RESULT_SYNC_PROFILE)
+            } else {
+                Timber.i("login was not successful")
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (showedActivityFailedScreen(savedInstanceState)) {
@@ -59,17 +60,19 @@ class IntroductionActivity : AnkiActivity() {
 
         handleCollectionSetupOption { option ->
             when (option) {
-                CollectionSetupOption.DeckPickerWithNewCollection -> startDeckPicker(RESULT_START_NEW)
+                CollectionSetupOption.DeckPickerWithNewCollection -> startDeckPicker()
                 CollectionSetupOption.SyncFromExistingAccount -> openLoginDialog()
             }
         }
     }
 
     private fun openLoginDialog() {
+        Timber.i("Opening login screen")
         onLoginResult.launch(Intent(this, LoginActivity::class.java))
     }
 
     private fun startDeckPicker(result: Int = RESULT_START_NEW) {
+        Timber.i("Opening deck picker, login: %b", result == RESULT_SYNC_PROFILE)
         this.sharedPrefs().edit { putBoolean(INTRODUCTION_SLIDES_SHOWN, true) }
         val deckPicker = Intent(this, DeckPicker::class.java)
         deckPicker.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -85,6 +88,12 @@ class IntroductionActivity : AnkiActivity() {
         const val RESULT_START_NEW = 1
         const val RESULT_SYNC_PROFILE = 2
 
+        /**
+         * Key for the preference recording that the slide "Study less/ Remember more" offering to
+         * get started or sync from ankiweb, was displayed. If so don't display it again.
+         */
         const val INTRODUCTION_SLIDES_SHOWN = "IntroductionSlidesShown"
     }
 }
+
+internal fun Context.hasShownAppIntro(): Boolean = sharedPrefs().getBoolean(IntroductionActivity.INTRODUCTION_SLIDES_SHOWN, false)

@@ -22,27 +22,27 @@ import androidx.annotation.VisibleForTesting
 import com.ichi2.anki.CollectionManager
 import com.ichi2.anki.R
 import com.ichi2.anki.servicelayer.LanguageHint
-import com.ichi2.anki.servicelayer.LanguageHintService
+import com.ichi2.anki.servicelayer.LanguageHintService.languageHint
 import com.ichi2.libanki.Card
-import com.ichi2.utils.jsonObjectIterable
+import com.ichi2.libanki.Collection
 import org.intellij.lang.annotations.Language
-import org.json.JSONArray
 import timber.log.Timber
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
-// TODO: investigate whether it's feasible to drop the useInputTag option introduced back
-// in 2015. https://github.com/ankidroid/Anki-Android/pull/3921
-
+/**
+ * @param useInputTag use an `<input>` tag to allow for HTML styling
+ * @param autoFocus Whether the user wants to focus "type in answer"
+ */
 class TypeAnswer(
-    @get:JvmName("useInputTag") val useInputTag: Boolean,
-    @get:JvmName("doNotUseCodeFormatting") val doNotUseCodeFormatting: Boolean,
-    /** Preference: Whether the user wants to focus "type in answer" */
-    val autoFocus: Boolean
+    val useInputTag: Boolean,
+    val autoFocus: Boolean,
 ) {
-
-    /** The correct answer in the compare to field if answer should be given by learner. Null if no answer is expected. */
+    /** The correct answer in the compare to field if answer should be given by learner. `null` if no answer is expected. */
     var correct: String? = null
+        private set
+
+    var combining: Boolean = true
         private set
 
     /** What the learner actually typed (externally mutable) */
@@ -62,7 +62,7 @@ class TypeAnswer(
     /**
      * Optional warning for when a typed answer can't be displayed
      *
-     * * empty card [R.string.empty_card_warning]
+     * * empty card
      * * unknown field specified [R.string.unknown_type_field_warning]
      * */
     var warning: String? = null
@@ -70,23 +70,24 @@ class TypeAnswer(
 
     /**
      * @return true If entering input via EditText
-     * and if the current card has a {{type:field}} on the card template
+     * and if the current card has a `{{type:field}}` on the card template
      */
-    fun validForEditText(): Boolean {
-        return !useInputTag && correct != null
-    }
+    fun validForEditText(): Boolean = !useInputTag && correct != null
 
-    fun autoFocusEditText(): Boolean {
-        return validForEditText() && autoFocus
-    }
+    fun autoFocusEditText(): Boolean = validForEditText() && autoFocus
 
     /**
      * Extract type answer/cloze text and font/size
      * @param card The next card to display
      */
-    fun updateInfo(card: Card, res: Resources) {
+    fun updateInfo(
+        col: Collection,
+        card: Card,
+        res: Resources,
+    ) {
+        combining = true
         correct = null
-        val q = card.question(false)
+        val q = card.question(col)
         val m = PATTERN.matcher(q)
         var clozeIdx = 0
         if (!m.find()) {
@@ -99,29 +100,33 @@ class TypeAnswer(
             clozeIdx = card.ord + 1
             fldTag = fldTag.split(":").toTypedArray()[1]
         }
+        if (fldTag.startsWith("nc:")) {
+            combining = false
+            fldTag = fldTag.split(":").toTypedArray()[1]
+        }
         // loop through fields for a match
-        val flds: JSONArray = card.model().getJSONArray("flds")
-        for (fld in flds.jsonObjectIterable()) {
-            val name = fld.getString("name")
+        for (fld in card.noteType(col).flds) {
+            val name = fld.name
             if (name == fldTag) {
-                correct = card.note().getItem(name)
+                correct = card.note(col).getItem(name)
                 if (clozeIdx != 0) {
                     // narrow to cloze
                     correct = contentForCloze(correct!!, clozeIdx)
                 }
-                font = fld.getString("font")
-                size = fld.getInt("size")
-                languageHint = LanguageHintService.getLanguageHintForField(fld)
+                font = fld.font
+                size = fld.fontSize
+                languageHint = fld.languageHint
                 break
             }
         }
         when (correct) {
             null -> {
-                warning = if (clozeIdx != 0) {
-                    res.getString(R.string.empty_card_warning)
-                } else {
-                    res.getString(R.string.unknown_type_field_warning, fldTag)
-                }
+                warning =
+                    if (clozeIdx != 0) {
+                        CollectionManager.TR.cardTemplateRenderingEmptyFront()
+                    } else {
+                        res.getString(R.string.unknown_type_field_warning, fldTag)
+                    }
             }
             "" -> {
                 correct = null
@@ -139,25 +144,33 @@ class TypeAnswer(
      * @param buf The question text
      * @return The formatted question text
      */
+    @Suppress("ktlint:standard:max-line-length")
     fun filterQuestion(buf: String): String {
         val m = PATTERN.matcher(buf)
         if (warning != null) {
             return m.replaceFirst(warning!!)
         }
         val sb = java.lang.StringBuilder()
-        fun append(@Language("HTML") html: String) = sb.append(html)
+
+        fun append(
+            @Language("HTML") html: String,
+        ) = sb.append(html)
         if (useInputTag) {
             // These functions are defined in the JavaScript file assets/scripts/card.js. We get the text back in
             // shouldOverrideUrlLoading() in createWebView() in this file.
+
             append(
                 """<center>
-<input type="text" name="typed" id="typeans" onfocus="taFocus();" onblur="taBlur(this);" onKeyPress="return taKey(this, event)" autocomplete="off" """
+<input type="text" name="typed" id="typeans" data-focus="$autoFocus" onfocus="taFocus();" oninput='taChange(this);' onKeyPress="return taKey(this, event)" autocomplete="off" """,
             )
             // We have to watch out. For the preview we don’t know the font or font size. Skip those there. (Anki
-            // desktop just doesn’t show the input tag there. Do it with standard values here instead.)
+            // desktop just doesn't show the input tag there. Do it with standard values here instead.)
             if (font.isNotEmpty() && size > 0) {
-                append("style=\"font-family: '").append(font).append("'; font-size: ")
-                    .append(size).append("px;\" ")
+                append("style=\"font-family: '")
+                    .append(font)
+                    .append("'; font-size: ")
+                    .append(size)
+                    .append("px;\" ")
             }
             append(">\n</center>\n")
         } else {
@@ -192,15 +205,19 @@ class TypeAnswer(
      * @param correctAnswer The correct answer, taken from the note.
      * @return The formatted answer text
      */
-    fun filterAnswer(answer: String, userAnswer: String, correctAnswer: String): String {
+    fun filterAnswer(
+        answer: String,
+        userAnswer: String,
+        correctAnswer: String,
+    ): String {
         val m: Matcher = PATTERN.matcher(answer)
         val sb = StringBuilder()
-        fun append(@Language("HTML") html: String) = sb.append(html)
 
-        var comparisonText = CollectionManager.compareAnswer(correctAnswer, userAnswer)
-        if (doNotUseCodeFormatting) {
-            comparisonText = "$comparisonText<style>code.typeans { font-family: sans-serif; }</style>"
-        }
+        fun append(
+            @Language("HTML") html: String,
+        ) = sb.append(html)
+
+        val comparisonText = CollectionManager.compareAnswer(correctAnswer, userAnswer, combining)
         append(Matcher.quoteReplacement(comparisonText))
         return m.replaceAll(sb.toString())
     }
@@ -209,13 +226,11 @@ class TypeAnswer(
         /** Regular expression in card data for a 'type answer' after processing has occurred */
         val PATTERN: Pattern = Pattern.compile("\\[\\[type:(.+?)]]")
 
-        fun createInstance(preferences: SharedPreferences): TypeAnswer {
-            return TypeAnswer(
+        fun createInstance(preferences: SharedPreferences): TypeAnswer =
+            TypeAnswer(
                 useInputTag = preferences.getBoolean("useInputTag", false),
-                doNotUseCodeFormatting = preferences.getBoolean("noCodeFormatting", false),
-                autoFocus = preferences.getBoolean("autoFocusTypeInAnswer", false)
+                autoFocus = preferences.getBoolean("autoFocusTypeInAnswer", true),
             )
-        }
 
         /**
          * Return the correct answer to use for {{type::cloze::NN}} fields.
@@ -226,7 +241,10 @@ class TypeAnswer(
          * a string with a comma-separeted list of strings with the correct index.
          */
         @VisibleForTesting
-        fun contentForCloze(txt: String, idx: Int): String? {
+        fun contentForCloze(
+            txt: String,
+            idx: Int,
+        ): String? {
             // In Android, } should be escaped
             val re = Pattern.compile("\\{\\{c$idx::(.+?)\\}\\}")
             val m = re.matcher(txt)

@@ -30,11 +30,10 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.customview.customView
 import com.ichi2.anki.R
 import com.ichi2.anki.analytics.AnalyticsDialogFragment
 import com.ichi2.anki.dialogs.LocaleSelectionDialog.LocaleListAdapter.TextViewHolder
+import com.ichi2.ui.AccessibleSearchView
 import com.ichi2.ui.RecyclerSingleTouchAdapter
 import com.ichi2.utils.DisplayUtils.resizeWhenSoftInputShown
 import com.ichi2.utils.TypedFilter
@@ -42,10 +41,11 @@ import java.util.Locale
 
 /** Locale selection dialog. Note: this must be dismissed onDestroy if not called from an activity implementing LocaleSelectionDialogHandler  */
 class LocaleSelectionDialog : AnalyticsDialogFragment() {
-    private var mDialogHandler: LocaleSelectionDialogHandler? = null
+    private var dialogHandler: LocaleSelectionDialogHandler? = null
 
     interface LocaleSelectionDialogHandler {
         fun onSelectedLocale(selectedLocale: Locale)
+
         fun onLocaleSelectionCancelled()
     }
 
@@ -57,78 +57,86 @@ class LocaleSelectionDialog : AnalyticsDialogFragment() {
     override fun onAttach(context: Context) {
         super.onAttach(context)
         if (context is Activity) {
-            if (mDialogHandler == null) {
+            if (dialogHandler == null) {
                 require(context is LocaleSelectionDialogHandler) { "Calling activity must implement LocaleSelectionDialogHandler" }
-                mDialogHandler = context
+                dialogHandler = context
             }
-            resizeWhenSoftInputShown(context.window)
         }
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val activity: Activity = requireActivity()
-        val tagsDialogView = LayoutInflater.from(activity)
-            .inflate(R.layout.locale_selection_dialog, activity.findViewById(R.id.root_layout), false)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? = inflater.inflate(R.layout.locale_selection_dialog, container, false)
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         val adapter = LocaleListAdapter(Locale.getAvailableLocales() + IPALanguage)
-        setupRecyclerView(activity, tagsDialogView, adapter)
-        inflateMenu(tagsDialogView, adapter)
+        setupRecyclerView(requireActivity(), view, adapter)
+        inflateMenu(view, adapter)
+    }
 
-        // Only show a negative button, use the RecyclerView for positive actions
-        // when changing to AlertDialog make sure the keyboard is being shown when clicking search in the dialog toolbar
-        val dialog = MaterialDialog(activity).show {
-            customView(view = tagsDialogView, noVerticalPadding = true)
-            negativeButton(text = getString(R.string.dialog_cancel)) {
-                mDialogHandler!!.onLocaleSelectionCancelled()
+    override fun setupDialog(
+        dialog: Dialog,
+        style: Int,
+    ) {
+        super.setupDialog(dialog, style)
+        dialog.window?.let { resizeWhenSoftInputShown(it) }
+    }
+
+    private fun setupRecyclerView(
+        activity: Activity,
+        tagsDialogView: View,
+        adapter: LocaleListAdapter,
+    ) {
+        tagsDialogView.findViewById<RecyclerView>(R.id.locale_dialog_selection_list).apply {
+            requestFocus()
+            this.adapter = adapter
+            layoutManager = LinearLayoutManager(activity)
+            addOnItemTouchListener(
+                RecyclerSingleTouchAdapter(activity) { _, position ->
+                    dialogHandler!!.onSelectedLocale(adapter.getLocaleAtPosition(position))
+                },
+            )
+        }
+    }
+
+    private fun inflateMenu(
+        tagsDialogView: View,
+        adapter: LocaleListAdapter,
+    ) {
+        tagsDialogView.findViewById<Toolbar>(R.id.locale_dialog_selection_toolbar).apply {
+            inflateMenu(R.menu.locale_dialog_search_bar)
+            setNavigationOnClickListener { dialogHandler!!.onLocaleSelectionCancelled() }
+            (menu.findItem(R.id.locale_dialog_action_search).actionView as AccessibleSearchView).apply {
+                imeOptions = EditorInfo.IME_ACTION_DONE
+                setOnQueryTextListener(
+                    object : SearchView.OnQueryTextListener {
+                        override fun onQueryTextSubmit(query: String): Boolean = false
+
+                        override fun onQueryTextChange(newText: String): Boolean {
+                            adapter.filter.filter(newText)
+                            return false
+                        }
+                    },
+                )
             }
         }
-
-        val window = dialog.window
-        if (window != null) {
-            resizeWhenSoftInputShown(window)
-        }
-        return dialog
     }
 
-    private fun setupRecyclerView(activity: Activity, tagsDialogView: View, adapter: LocaleListAdapter) {
-        val recyclerView: RecyclerView = tagsDialogView.findViewById(R.id.locale_dialog_selection_list)
-        recyclerView.requestFocus()
-        val layoutManager: RecyclerView.LayoutManager = LinearLayoutManager(activity)
-        recyclerView.layoutManager = layoutManager
-        recyclerView.adapter = adapter
-        recyclerView.addOnItemTouchListener(
-            RecyclerSingleTouchAdapter(
-                activity
-            ) { _, position ->
-                val l = adapter.getLocaleAtPosition(position)
-                mDialogHandler!!.onSelectedLocale(l)
-            }
-        )
-    }
+    class LocaleListAdapter(
+        locales: Array<Locale>,
+    ) : RecyclerView.Adapter<TextViewHolder>(),
+        Filterable {
+        private val currentlyVisibleLocales: MutableList<Locale> = locales.toMutableList()
+        private val selectableLocales: List<Locale> = locales.toList()
 
-    private fun inflateMenu(tagsDialogView: View, adapter: LocaleListAdapter) {
-        val toolbar: Toolbar = tagsDialogView.findViewById(R.id.locale_dialog_selection_toolbar)
-        toolbar.setTitle(R.string.locale_selection_dialog_title)
-        toolbar.inflateMenu(R.menu.locale_dialog_search_bar)
-        val searchItem = toolbar.menu.findItem(R.id.locale_dialog_action_search)
-        val searchView = searchItem.actionView as SearchView
-        searchView.imeOptions = EditorInfo.IME_ACTION_DONE
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String): Boolean {
-                return false
-            }
-
-            override fun onQueryTextChange(newText: String): Boolean {
-                adapter.filter.filter(newText)
-                return false
-            }
-        })
-    }
-
-    class LocaleListAdapter(locales: Array<Locale>) : RecyclerView.Adapter<TextViewHolder>(), Filterable {
-        private val mCurrentlyVisibleLocales: MutableList<Locale> = locales.toMutableList()
-        private val mSelectableLocales: List<Locale> = locales.toList()
-
-        class TextViewHolder(private val textView: TextView) : RecyclerView.ViewHolder(textView) {
+        class TextViewHolder(
+            private val textView: TextView,
+        ) : RecyclerView.ViewHolder(textView) {
             fun setText(text: String) {
                 textView.text = text
             }
@@ -141,32 +149,42 @@ class LocaleSelectionDialog : AnalyticsDialogFragment() {
 
         override fun onCreateViewHolder(
             parent: ViewGroup,
-            viewType: Int
+            viewType: Int,
         ): TextViewHolder {
-            val v = LayoutInflater.from(parent.context)
-                .inflate(R.layout.locale_dialog_fragment_textview, parent, false) as TextView
+            val v =
+                LayoutInflater
+                    .from(parent.context)
+                    .inflate(R.layout.locale_dialog_fragment_textview, parent, false) as TextView
             return TextViewHolder(v)
         }
 
-        override fun onBindViewHolder(holder: TextViewHolder, position: Int) =
-            holder.setLocale(mCurrentlyVisibleLocales[position])
+        override fun onBindViewHolder(
+            holder: TextViewHolder,
+            position: Int,
+        ) = holder.setLocale(currentlyVisibleLocales[position])
 
-        override fun getItemCount(): Int = mCurrentlyVisibleLocales.size
+        override fun getItemCount(): Int = currentlyVisibleLocales.size
 
-        fun getLocaleAtPosition(position: Int): Locale = mCurrentlyVisibleLocales[position]
+        fun getLocaleAtPosition(position: Int): Locale = currentlyVisibleLocales[position]
 
         override fun getFilter(): Filter {
-            return object : TypedFilter<Locale>(mSelectableLocales) {
-                override fun filterResults(constraint: CharSequence, items: List<Locale>): List<Locale> {
+            return object : TypedFilter<Locale>(selectableLocales) {
+                override fun filterResults(
+                    constraint: CharSequence,
+                    items: List<Locale>,
+                ): List<Locale> {
                     val normalisedConstraint = constraint.toString().lowercase(Locale.getDefault())
                     return items.filter {
                         it.displayName.lowercase(Locale.getDefault()).contains(normalisedConstraint)
                     }
                 }
 
-                override fun publishResults(constraint: CharSequence?, results: List<Locale>) {
-                    mCurrentlyVisibleLocales.clear()
-                    mCurrentlyVisibleLocales.addAll(results)
+                override fun publishResults(
+                    constraint: CharSequence?,
+                    results: List<Locale>,
+                ) {
+                    currentlyVisibleLocales.clear()
+                    currentlyVisibleLocales.addAll(results)
                     notifyDataSetChanged()
                 }
             }
@@ -186,11 +204,10 @@ class LocaleSelectionDialog : AnalyticsDialogFragment() {
         /**
          * @param handler Marker interface to enforce the convention the caller implementing LocaleSelectionDialogHandler
          */
-        fun newInstance(handler: LocaleSelectionDialogHandler): LocaleSelectionDialog {
-            return LocaleSelectionDialog().apply {
-                mDialogHandler = handler
+        fun newInstance(handler: LocaleSelectionDialogHandler): LocaleSelectionDialog =
+            LocaleSelectionDialog().apply {
+                dialogHandler = handler
                 arguments = Bundle()
             }
-        }
     }
 }

@@ -17,14 +17,19 @@
 package com.ichi2.anki
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.os.Parcel
+import android.os.Parcelable
 import androidx.core.os.bundleOf
 import com.ichi2.async.saveModel
 import com.ichi2.compat.CompatHelper.Companion.compat
 import com.ichi2.compat.CompatHelper.Companion.getSerializableCompat
+import com.ichi2.libanki.CardTemplate
+import com.ichi2.libanki.Collection
 import com.ichi2.libanki.NoteTypeId
 import com.ichi2.libanki.NotetypeJson
-import org.json.JSONObject
+import com.ichi2.utils.KotlinCleanup
 import timber.log.Timber
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -32,34 +37,38 @@ import java.io.File
 import java.io.IOException
 
 /** A wrapper for a notetype in JSON format with helpers for editing the notetype. */
-class CardTemplateNotetype(val notetype: NotetypeJson) {
+@KotlinCleanup("_templateChanges -> use templateChanges")
+class CardTemplateNotetype(
+    val notetype: NotetypeJson,
+) {
     enum class ChangeType {
-        ADD, DELETE
+        ADD,
+        DELETE,
     }
 
-    private var mTemplateChanges = ArrayList<Array<Any>>()
-    var editedModelFileName: String? = null
+    private var _templateChanges = ArrayList<Array<Any>>()
 
-    fun toBundle(): Bundle = bundleOf(
-        INTENT_MODEL_FILENAME to saveTempModel(AnkiDroidApp.instance.applicationContext, notetype),
-        "mTemplateChanges" to mTemplateChanges
-    )
+    fun toBundle(): Bundle =
+        bundleOf(
+            INTENT_MODEL_FILENAME to saveTempModel(AnkiDroidApp.instance.applicationContext, notetype),
+            "mTemplateChanges" to _templateChanges,
+        )
 
     private fun loadTemplateChanges(bundle: Bundle) {
         try {
-            mTemplateChanges = bundle.getSerializableCompat("mTemplateChanges")!!
+            _templateChanges = bundle.getSerializableCompat("mTemplateChanges")!!
         } catch (e: ClassCastException) {
             Timber.e(e, "Unexpected cast failure")
         }
     }
 
-    fun getTemplate(ord: Int): JSONObject {
+    fun getTemplate(ord: Int): CardTemplate {
         Timber.d("getTemplate() on ordinal %s", ord)
-        return notetype.getJSONArray("tmpls").getJSONObject(ord)
+        return notetype.tmpls[ord]
     }
 
     val templateCount: Int
-        get() = notetype.getJSONArray("tmpls").length()
+        get() = notetype.tmpls.length()
 
     val modelId: NoteTypeId
         get() = notetype.getLong("id")
@@ -71,13 +80,16 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
     val css: String
         get() = notetype.getString("css")
 
-    fun updateTemplate(ordinal: Int, template: JSONObject) {
-        notetype.getJSONArray("tmpls").put(ordinal, template)
+    fun updateTemplate(
+        ordinal: Int,
+        template: CardTemplate,
+    ) {
+        notetype.tmpls[ordinal] = template
     }
 
-    fun addNewTemplate(newTemplate: JSONObject) {
+    fun addNewTemplate(newTemplate: CardTemplate) {
         Timber.d("addNewTemplate()")
-        addTemplateChange(ChangeType.ADD, newTemplate.getInt("ord"))
+        addTemplateChange(ChangeType.ADD, newTemplate.ord)
     }
 
     fun removeTemplate(ord: Int) {
@@ -85,18 +97,21 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
         addTemplateChange(ChangeType.DELETE, ord)
     }
 
-    fun saveToDatabase(collection: com.ichi2.libanki.Collection) {
+    fun saveToDatabase(col: Collection) {
         Timber.d("saveToDatabase() called")
         dumpChanges()
         clearTempModelFiles()
-        return saveModel(collection, notetype, adjustedTemplateChanges)
+        return saveModel(col, notetype, adjustedTemplateChanges)
     }
 
     /**
      * Template deletes shift card ordinals in the database. To operate without saving, we must keep track to apply in order.
      * In addition, we don't want to persist a template add just to delete it later, so we combine those if they happen
      */
-    fun addTemplateChange(type: ChangeType, ordinal: Int) {
+    fun addTemplateChange(
+        type: ChangeType,
+        ordinal: Int,
+    ) {
         Timber.d("addTemplateChange() type %s for ordinal %s", type, ordinal)
         val templateChanges = templateChanges
         val change = arrayOf<Any>(ordinal, type)
@@ -107,16 +122,18 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
             for (i in templateChanges.indices.reversed()) {
                 val oldChange = templateChanges[i]
                 when (oldChange[1] as ChangeType) {
-                    ChangeType.DELETE -> if (oldChange[0] as Int - ordinalAdjustment <= ordinal) {
-                        // Deleting an ordinal at or below us? Adjust our comparison basis...
-                        ordinalAdjustment++
-                        continue
-                    }
-                    ChangeType.ADD -> if (ordinal == oldChange[0] as Int - ordinalAdjustment) {
-                        // Deleting something we added this session? Edit it out via compaction
-                        compactTemplateChanges(oldChange[0] as Int)
-                        return
-                    }
+                    ChangeType.DELETE ->
+                        if (oldChange[0] as Int - ordinalAdjustment <= ordinal) {
+                            // Deleting an ordinal at or below us? Adjust our comparison basis...
+                            ordinalAdjustment++
+                            continue
+                        }
+                    ChangeType.ADD ->
+                        if (ordinal == oldChange[0] as Int - ordinalAdjustment) {
+                            // Deleting something we added this session? Edit it out via compaction
+                            compactTemplateChanges(oldChange[0] as Int)
+                            return
+                        }
                 }
             }
         }
@@ -137,17 +154,17 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
         Timber.d("getDeleteDbOrds()")
 
         // array containing the original / db-relative ordinals for all pending deletes plus the proposed one
-        val deletedDbOrds = ArrayList<Int>(mTemplateChanges.size)
+        val deletedDbOrds = ArrayList<Int>(_templateChanges.size)
 
         // For each entry in the changes list - and the proposed delete - scan for deletes to get original ordinal
-        for (i in 0..mTemplateChanges.size) {
+        for (i in 0.._templateChanges.size) {
             var ordinalAdjustment = 0
 
             // We need an initializer. Though proposed change is checked last, it's a reasonable default initializer.
             var currentChange = arrayOf<Any>(ord, ChangeType.DELETE)
-            if (i < mTemplateChanges.size) {
+            if (i < _templateChanges.size) {
                 // Until we exhaust the pending change list we will use them
-                currentChange = mTemplateChanges[i]
+                currentChange = _templateChanges[i]
             }
 
             // If the current pending change isn't a delete, it is unimportant here
@@ -157,7 +174,7 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
 
             // If it is a delete, scan previous deletes and shift as necessary for original ord
             for (j in 0 until i) {
-                val previousChange = mTemplateChanges[j]
+                val previousChange = _templateChanges[j]
 
                 // Is previous change a delete? Lower ordinal than current change?
                 if (previousChange[1] === ChangeType.DELETE && previousChange[0] as Int <= currentChange[0] as Int) {
@@ -182,22 +199,22 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
             return
         }
         val adjustedChanges = adjustedTemplateChanges
-        for (i in mTemplateChanges.indices) {
-            val change = mTemplateChanges[i]
+        for (i in _templateChanges.indices) {
+            val change = _templateChanges[i]
             val adjustedChange = adjustedChanges[i]
             Timber.d("dumpChanges() Change %s is ord/type %s/%s", i, change[0], change[1])
             Timber.d(
                 "dumpChanges() During save change %s will be ord/type %s/%s",
                 i,
                 adjustedChange[0],
-                adjustedChange[1]
+                adjustedChange[1],
             )
         }
     }
 
     val templateChanges: ArrayList<Array<Any>>
         get() {
-            return mTemplateChanges
+            return _templateChanges
         }
 
     /**
@@ -225,7 +242,7 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                             "getAdjustedTemplateChanges() change %s ordinal adjusted from %s to %s",
                             i,
                             change[0],
-                            adjustedChange[0]
+                            adjustedChange[0],
                         )
                     }
                     ChangeType.DELETE -> {}
@@ -242,13 +259,13 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
     private fun compactTemplateChanges(addedOrdinalToDelete: Int) {
         Timber.d(
             "compactTemplateChanges() merge/purge add/delete ordinal added as %s",
-            addedOrdinalToDelete
+            addedOrdinalToDelete,
         )
         var postChange = false
         var ordinalAdjustment = 0
         var i = 0
-        while (i < mTemplateChanges.size) {
-            val change = mTemplateChanges[i]
+        while (i < _templateChanges.size) {
+            val change = _templateChanges[i]
             var ordinal = change[0] as Int
             val changeType = change[1] as ChangeType
             Timber.d("compactTemplateChanges() examining change entry %s / %s", ordinal, changeType)
@@ -259,7 +276,7 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                     Timber.d("compactTemplateChanges() found our entry at index %s", i)
                     // Remove this entry to start compaction, then fix up the loop counter since we altered size
                     postChange = true
-                    mTemplateChanges.removeAt(i)
+                    _templateChanges.removeAt(i)
                     i--
                 }
                 i++
@@ -271,7 +288,7 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                 ordinalAdjustment++
                 Timber.d(
                     "compactTemplateChanges() delete affecting purged template, shifting basis, adj: %s",
-                    ordinalAdjustment
+                    ordinalAdjustment,
                 )
             }
 
@@ -301,22 +318,26 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                 return null
             }
             Timber.d("onCreate() loading saved model file %s", editedModelFileName)
-            val tempNotetypeJSON: NotetypeJson = try {
-                getTempModel(editedModelFileName)
-            } catch (e: IOException) {
-                Timber.w(e, "Unable to load saved model file")
-                return null
+            val tempNotetypeJSON: NotetypeJson =
+                try {
+                    getTempModel(editedModelFileName)
+                } catch (e: IOException) {
+                    Timber.w(e, "Unable to load saved model file")
+                    return null
+                }
+            return CardTemplateNotetype(tempNotetypeJSON).apply {
+                loadTemplateChanges(bundle)
             }
-            val model = CardTemplateNotetype(tempNotetypeJSON)
-            model.loadTemplateChanges(bundle)
-            return model
         }
 
         /**
          * Save the current model to a temp file in the application internal cache directory
          * @return String representing the absolute path of the saved file, or null if there was a problem
          */
-        fun saveTempModel(context: Context, tempModel: JSONObject): String? {
+        fun saveTempModel(
+            context: Context,
+            tempModel: NotetypeJson,
+        ): String? {
             Timber.d("saveTempModel() saving tempModel")
             var tempModelFile: File
             try {
@@ -372,7 +393,10 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
          * @param ord int representing an ordinal in the model, that might be an unsaved addition
          * @return boolean true if it is a pending addition from this editing session
          */
-        fun isOrdinalPendingAdd(model: CardTemplateNotetype, ord: Int): Boolean {
+        fun isOrdinalPendingAdd(
+            model: CardTemplateNotetype,
+            ord: Int,
+        ): Boolean {
             for (i in model.templateChanges.indices) {
                 // commented out to make the code compile, why is this unused?
                 // val change = model.templateChanges[i]
@@ -381,7 +405,7 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                     Timber.d(
                         "isOrdinalPendingAdd() found ord %s was pending add (would adjust to %s)",
                         ord,
-                        adjustedOrdinal
+                        adjustedOrdinal,
                     )
                     return true
                 }
@@ -396,7 +420,10 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
          * @param changesIndex the index of the template in the changes array
          * @return either ordinal adjusted by any pending deletes if it is a pending add, or -1 if the ordinal is not an add
          */
-        fun getAdjustedAddOrdinalAtChangeIndex(model: CardTemplateNotetype, changesIndex: Int): Int {
+        fun getAdjustedAddOrdinalAtChangeIndex(
+            model: CardTemplateNotetype,
+            changesIndex: Int,
+        ): Int {
             if (changesIndex >= model.templateChanges.size) {
                 return -1
             }
@@ -416,26 +443,93 @@ class CardTemplateNotetype(val notetype: NotetypeJson) {
                         Timber.d(
                             "getAdjustedAddOrdinalAtChangeIndex() contemplating delete at index %s, current ord adj %s",
                             i,
-                            ordinalAdjustment
+                            ordinalAdjustment,
                         )
                     }
-                    ChangeType.ADD -> if (changesIndex == i) {
-                        // something we added this session
-                        Timber.d(
-                            "getAdjustedAddOrdinalAtChangeIndex() pending add found at at index %s, old ord/adjusted ord %s/%s",
-                            i,
-                            currentOrdinal,
-                            currentOrdinal - ordinalAdjustment
-                        )
-                        return currentOrdinal - ordinalAdjustment
-                    }
+                    ChangeType.ADD ->
+                        if (changesIndex == i) {
+                            // something we added this session
+                            Timber.d(
+                                "getAdjustedAddOrdinalAtChangeIndex() pending add found at at index %s, old ord/adjusted ord %s/%s",
+                                i,
+                                currentOrdinal,
+                                currentOrdinal - ordinalAdjustment,
+                            )
+                            return currentOrdinal - ordinalAdjustment
+                        }
                 }
             }
             Timber.d(
                 "getAdjustedAddOrdinalAtChangeIndex() determined changesIndex %s was not a pending add",
-                changesIndex
+                changesIndex,
             )
             return -1
         }
+    }
+}
+
+/**
+ * Temporary file containing a [NotetypeJson]
+ *
+ * Useful for adding a [NotetypeJson] into a [Bundle], like when using [Intent.putExtra]
+ * for sending an object to another activity.
+ *
+ * The notetype is written into a file because there is a
+ * [limit of 1MB](https://developer.android.com/reference/android/os/TransactionTooLargeException.html)
+ * for [Bundle] transactions, and notetypes can be bigger than that (#5600).
+ */
+class NotetypeFile(
+    path: String,
+) : File(path),
+    Parcelable {
+    /**
+     * @param directory where the file will be saved
+     * @param notetype to be stored
+     */
+    constructor(directory: File, notetype: NotetypeJson) : this(createTempFile("notetype", ".tmp", directory).absolutePath) {
+        try {
+            ByteArrayInputStream(notetype.toString().toByteArray()).use { source ->
+                compat.copyFile(source, this.absolutePath)
+            }
+        } catch (ioe: IOException) {
+            Timber.w(ioe, "Unable to create+write temp file for model")
+        }
+    }
+
+    /**
+     * @param context for getting the cache directory
+     * @param notetype to be stored
+     */
+    constructor(context: Context, notetype: NotetypeJson) : this(context.cacheDir, notetype)
+
+    fun getNotetype(): NotetypeJson =
+        try {
+            ByteArrayOutputStream().use { target ->
+                compat.copyFile(absolutePath, target)
+                NotetypeJson(target.toString())
+            }
+        } catch (e: IOException) {
+            Timber.e(e, "Unable to read+parse tempModel from file %s", absolutePath)
+            throw e
+        }
+
+    override fun describeContents(): Int = 0
+
+    override fun writeToParcel(
+        dest: Parcel,
+        flags: Int,
+    ) {
+        dest.writeString(path)
+    }
+
+    companion object {
+        @JvmField
+        @Suppress("unused")
+        val CREATOR =
+            object : Parcelable.Creator<NotetypeFile> {
+                override fun createFromParcel(source: Parcel?): NotetypeFile = NotetypeFile(source!!.readString()!!)
+
+                override fun newArray(size: Int): Array<NotetypeFile> = arrayOf()
+            }
     }
 }

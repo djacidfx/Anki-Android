@@ -46,38 +46,24 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="check_db_title">Periksa pangkalan data?</string>
     <string name="check_db_warning">Mungkin mengambil masa lama</string>
-    <string name="contextmenu_deckpicker_delete_deck">Padam dek</string>
+    <string name="contextmenu_deckpicker_delete_deck" maxLength="28">Padam dek</string>
     <string name="delete_deck_title">Padam dek?</string>
+    <plurals name="delete_deck_message">
+        <item quantity="other">Delete all cards in %1$s? It contains %2$d cards</item>
+    </plurals>
+    <string name="delete_cram_deck_message">Delete filtered deck %s and send all cards back to their original decks?</string>
     <string name="no_tts_available_message">Teks-ke-ucapan bahasa tiada</string>
-    <string name="initializing_tts">Memulakan TTS&#8230;</string>
     <string name="tts_no_tts">Jangan bercakap</string>
     <string name="unused_strings">\n\nFail tidak digunakan:\n</string>
-    <string name="preview_title" comment="Title of the window allowing to preview card(s)">Pratonton</string>
     <string name="reposition_card_dialog_title">Alih posisi kad baru</string>
-    <string name="reposition_card_dialog_message">Posisi mula:</string>
     <string name="reposition_card_not_new_error">Hanya kad baru boleh alih posisi</string>
     <plurals name="reposition_card_dialog_acknowledge">
         <item quantity="other">%d kad telah alih posisi</item>
     </plurals>
     <string name="reset_card_dialog_title">Tetap semula kemajuan kad</string>
-    <string name="reset_card_dialog_message">Kad ini akan diletakkan pada hujung aturan kad baru</string>
     <plurals name="reset_cards_dialog_acknowledge">
         <item quantity="other">%d kad ditetap semula</item>
     </plurals>
-    <!-- Reschedule Card Dialog -->
-    <plurals name="reschedule_cards_dialog_title_new">
-        <item quantity="other">Jadualkan semula %d kad</item>
-    </plurals>
-    <plurals name="reschedule_card_dialog_interval">
-        <item quantity="other">Selang kini: %d hari</item>
-    </plurals>
-    <string name="reschedule_card_dialog_message">Jadualkan semula untuk semakan dalam x hari</string>
-    <plurals name="reschedule_cards_dialog_acknowledge">
-        <item quantity="other">%d kad telah dijadual semula</item>
-    </plurals>
-    <string name="reschedule_card_dialog_new_card_warning">Kad baru sedang dijadualkan semula. Penjadualan semula juga menukarkan kad baru kepada kad semakan. Guna pilihan \'alih posisi kad\' untuk ubah posisi kad baru dalam aturan baru</string>
-    <string name="reschedule_card_dialog_warning_ease_reset">Penjadualan semula juga tetap semula cara penjadual mengolah kard pada masa hadapan (longgaran akan ditetapkan ke %d%%)</string>
-    <string name="firefox_workaround_launched_reviewer_opening_deck">Pilih dek dalam pengurus fail anda atau lawat halaman about:downloads untuk mengimportnya</string>
     <string name="answering_error_title">Ralat pangkalan data</string>
     <string name="answering_error_message">Menulis ke koleksi gagal. Pangkalan data mungkin rosak atau kehabisan ruang kosong pada cakera.\n\nJika ini berlaku kerap, cuba periksa pangkalan data, baiki koleksi atau pulih dari suatu sandaran. Sentuh \"tetapan\" untuk lakukannya.\n\Atau ia mungkin pepijat AnkiDroid; sila laporkannya agar kami boleh memeriksa ralat tersebut.</string>
     <string name="answering_error_report">Lapor ralat</string>
@@ -85,15 +71,11 @@
     <string name="repair_deck_dialog">Adakah anda pasti mahu membaiki pangkalan data?\n\nSebelum mencuba, satu salinan akan dibuat dalam subfolder “%s”.</string>
     <string name="intent_aedict_empty">Kategori “lalai” kosong</string>
     <string name="intent_aedict_category">Untuk tambah kad ke AnkiDroid buang semua kategori Papan Nota atau tambah satu bernama “default”</string>
-    <string name="custom_study_new_total_new">Kad baru dalam dek: %d</string>
-    <string name="custom_study_rev_total_rev">Semakan tunggakan dalam dek: %d</string>
     <string name="custom_study_new_extend">Tambahkan/Kurangkan (“-3”) had kad baru hari ini sebanyak</string>
     <string name="custom_study_rev_extend">Tambahkan/Kurangkan (“-3”) had semakan hari ini sebanyak</string>
     <string name="custom_study_forgotten">Semak kad terlupa dalam x hari:</string>
     <string name="custom_study_ahead">Semak awal sebanyak x hari:</string>
-    <string name="custom_study_random">Pilih x kad secara rawak daripada dek:</string>
     <string name="custom_study_preview">Pratonton kad baru ditambah dalam x hari lepas:</string>
-    <string name="custom_study_rebuild_deck_corrupt">Tidak dapat membina semula dek ulang kaji tersuai</string>
     <string name="storage_full_title">Storan penuh</string>
     <string name="storage_almost_full_title">Storan hampir penuh</string>
     <string name="no_space_to_downgrade_title" tools:ignore="UnusedResources">Tiada ruang</string>
@@ -106,16 +88,21 @@
     <string name="dialog_confirm" tools:ignore="UnusedResources">Pasti</string>
     <string name="dialog_no">Tidak</string>
     <string name="dialog_yes">Ya</string>
+    <string name="dialog_keep">Keep</string>
+    <string name="dialog_remove">Remove</string>
     <string name="dialog_continue">Teruskan</string>
     <string name="dialog_processing">Memproses&#8230;</string>
     <string name="dialog_positive_create" comment="Create a new collection, probably erasing the previous one, may be necessary in case of error.">Cipta</string>
-    <string name="dialog_positive_delete">Padam</string>
+    <string name="dialog_positive_delete" maxLength="28">Padam</string>
     <!-- Currently unsued, should be useful in the future -->
     <string name="dialog_positive_disable" tools:ignore="UnusedResources">Lumpuhkan</string>
     <string name="dialog_positive_overwrite">Tulis ganti</string>
     <string name="dialog_positive_repair">Baiki</string>
     <string name="dialog_positive_replace">Ganti</string>
     <string name="dialog_collection_path_not_dir">Laluan yang dinyatakan bukan direktori yang sah</string>
+    <string name="dialog_invalid_custom_certificate">The provided text does not resolve to a valid PEM-encoded X509 certificate</string>
+    <string name="dialog_invalid_custom_certificate_title">Error parsing certificate</string>
+    <string name="dialog_updated_custom_certificate">Certificate updated</string>
     <!-- Media checking -->
     <string name="check_media_title">Periksa media?</string>
     <string name="check_media_warning">Mungkin mengambil masa lama dengan koleksi media besar</string>
@@ -139,14 +126,11 @@
     <!-- Empty cards -->
     <string name="emtpy_cards_finding">Mencari kad kosong&#8230;</string>
     <string name="empty_cards_count">Kad untuk dipadam: %d</string>
-    <string name="empty_cards_deleted">Kad telah dipadam: %d</string>
     <!-- Multimedia - Edit Field Activity -->
     <string name="multimedia_editor_audio_permission_refused">Tidak dapat memperoleh kebenaran mikrofon.</string>
-    <string name="multimedia_editor_camera_permission_refused">Tidak dapat memperoleh kebenaran kamera. Fungsinya telah dilumpuhkan.</string>
     <string name="multimedia_editor_failed">Gagal membuka Penyunting Multimedia</string>
     <!-- Multimedia - Audio View -->
     <string name="multimedia_editor_audio_permission_denied">Kebenaran rakam audio ditolak</string>
-    <string name="mutimedia_editor_assertion_failed">Ralat tidak diketahui berlaku semasa memaparkan Penyunting Lanjutan</string>
     <!-- Database Integrity Check -->
     <string name="integrity_check_startup_title">AnkiDroid Dinaik Taraf</string>
     <string name="integrity_check_startup_content">AnkiDroid telah dinaik taraf. Naik taraf ini mungkin termasuk pembaikan kesulitan pangkalan data, dan kami nasihatkan anda lakukan pemeriksaan pangkalan data sekarang.</string>
@@ -171,16 +155,15 @@
     <string name="failed_to_apply_background_image">Gagal menggunakan gambar latar belakang %s</string>
     <string name="background_image_too_large">Latar belakang Pemilih Dek terlalu besar</string>
     <string name="image_max_size_allowed">Saiz maksimum gambar yang dibenarkan %d MB</string>
+    <string name="image_dimensions_too_large">Image dimensions are too large (%1$d × %2$d)</string>
     <!-- Global Intent handler -->
     <!-- Also used by Card Browser, not renaming to save translators effort -->
     <string name="intent_handler_failed_no_storage_permission">Kebenaran storan diperlukan tiada. Sila beri kebenaran storan kemudian cuba lagi tindakan anda.</string>
-    <!-- Browser Appearance -->
-    <string name="card_template_editor_card_browser_appearance_failed">Tidak dapat memuatkan Penampilan Pencari Kad</string>
     <!-- Boot Service -->
     <string name="boot_service_failed_to_schedule_notifications">Gagal menjadualkan peringatan</string>
     <string name="boot_service_too_many_notifications">Terlalu banyak peringatan dijadualkan. Beberapa peringatan tidak akan muncul</string>
     <!-- Locale Selection Dialog -->
-    <string name="locale_selection_dialog_title">Pemilihan Bahasa Papan Kekunci</string>
+    <string name="locale_selection_dialog_title_new">Set Language</string>
     <string name="locale_selection_dialog_summary">Sesetengah papan kekunci pelbagai bahasa, seperti Gboard menyokong pertukaran bahasa ketika menyunting teks\n\nSila minta ciri “setImeHintLocales” daripada pengusaha papan kekunci jika papan kekunci anda tidak tukar bahasa.</string>
     <!-- Help Dialog -->
     <string name="help_title_using_ankidroid">Menggunakan AnkiDroid</string>
@@ -191,7 +174,7 @@
     <string name="help_item_mailing_list">Senarai Mel</string>
     <string name="help_item_reddit">Reddit</string>
     <string name="help_item_report_bug">Laporkan Pepijat</string>
-    <string name="help_title_support_ankidroid">Sokong AnkiDroid</string>
+    <string name="help_title_support_ankidroid" maxLength="28">Sokong AnkiDroid</string>
     <string name="help_item_support_opencollective_donate">Derma</string>
     <string name="help_item_support_develop_ankidroid">Bangunkan</string>
     <string name="help_item_support_rate_ankidroid">Nilaikan</string>
@@ -208,11 +191,12 @@
     <string name="help_item_ankiweb_terms_and_conditions">Terma dan Syarat AnkiWeb</string>
     <string name="help_title_send_exception">Hantar laporan penyelesaian masalah</string>
     <string name="help_dialog_exception_report_debounce">Laporan telah dihantar</string>
+    <string name="help_dialog_exception_report_sent">Report was sent!</string>
     <!--Sync-->
     <plurals name="sync_automatic_sync_needs_more_time">
         <item quantity="other">Penyegerakan automatik mungkin dicetuskan dalam %d saat</item>
     </plurals>
-    <string name="metered_sync_warning">Sambungan anda bermeter. Pemindahan datam mungkin memerlukan wang</string>
+    <string name="metered_sync_data_warning">Your internet provider may charge money for data use</string>
     <string name="deck_picker_new">Bilangan kad baru untuk lihat hari ini dalam dek ini.</string>
     <string name="deck_picker_rev">Bilangan kad tunggakan hari ini dalam dek ini.</string>
     <string name="deck_picker_lrn">Bilangan kad sedang dipelajari hari ini dalam dek ini.</string>
@@ -228,7 +212,7 @@
     <!-- scoped storage -->
     <string name="backup_your_collection">Sandarkan koleksi anda</string>
     <string name="backup_collection_message">Anda masih belum sandarkan koleksi anda dalam jangka masa panjang. Anda sewajarnya lakukan ini sekarang bagi mengelak kehilangan data</string>
-    <string name="button_backup">Sandarkan</string>
+    <string name="button_backup" maxLength="41">Sandarkan</string>
     <string name="button_disable_reminder">Lumpuhkan peringatan</string>
     <string name="button_backup_later" comment="dismiss the \'Backup\' dialog for around 2 weeks">Kemudian</string>
     <string name="button_do_not_show_again" comment="permanently dismisses a dialog">Jangan tunjukkan lagi</string>
@@ -237,4 +221,38 @@
     </string>
     <string name="dismiss_backup_warning_upgrade">        Akibat perubahan privasi Android, data anda dan sandaran automatik tidak akan dapat dicapai jika aplikasi dinyahpasang
     </string>
+    <string name="deck_already_exists">Deck already exists</string>
+    <string name="empty_deck_name">Deck name cannot be empty</string>
+    <string name="create_deck_numeric_hint">If you have deck ordering issues (e.g. ‘10’ appears before ‘2’), replace ‘2’ with ‘02’</string>
+    <!-- Set Due Date -->
+    <string name="set_due_date_match_interval" comment="when setting a card\'s due date, this checkbox also changes the interval of the card">Set interval to same value</string>
+    <plurals name="set_due_date_single_day_label" comment="a date control is provided afterwards">
+        <item quantity="other">Show cards in</item>
+    </plurals>
+    <plurals name="set_due_date_range_label" comment="a date control is provided afterwards">
+        <item quantity="other">Show cards in range</item>
+    </plurals>
+    <plurals name="set_due_date_label_suffix" comment="a suffix on a text field allowing a user to enter a number of days">
+        <item quantity="other">days</item>
+    </plurals>
+    <string name="range_delimiter" comment="Placed between two input boxes to denote a range">–</string>
+    <string name="set_due_date_range_start" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'minimum\' value of this range (inclusive)">From</string>
+    <string name="set_due_date_range_end" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'maximum\' value of this range (inclusive)">To</string>
+    <!-- Instant Note Editor -->
+    <string name="cloze_note_required">Cloze Type Note Required</string>
+    <string name="cloze_not_found_message">No Cloze type note found, open the Note Editor or try again after adding a Cloze type note.</string>
+    <string name="open">Open</string>
+    <string name="change_cloze_number">Change cloze number</string>
+    <string name="cloze_number">Cloze number:</string>
+    <string name="change_editor_mode">Change editor mode</string>
+    <string name="open_note_editor">Open note editor</string>
+    <string name="change_cloze_mode">Change cloze mode</string>
+    <!-- Outdated WebView dialog -->
+    <string name="webview_update_message">The system WebView is outdated. Some features won’t work correctly. Please update it.\n\nInstalled version: %1$d\nMinimum required version: %2$d</string>
+    <string name="compress">Compress</string>
+    <!-- Tts playback error dialog -->
+    <string name="tts_error_dialog_title">Language not supported</string>
+    <string name="tts_error_dialog_reason_text">The text to speech engine <b>%1$s</b> does not support the following language: <b>%2$s</b></string>
+    <string name="tts_error_dialog_change_button_text">Change engine</string>
+    <string name="tts_error_dialog_supported_voices_button_text">Voice options</string>
 </resources>

@@ -26,11 +26,11 @@
  
 <resources>
     <!--Menu Labels-->
-    <string name="model_browser_label" comment="Label of the browser of note types. The text can\'t be found in AnkiDroid directly.">Керування типами записів</string>
+    <string name="model_browser_label" comment="Label of the browser of note types. The text can\'t be found in AnkiDroid directly." maxLength="28">Керування типами записів</string>
     <string name="model_editor_label" comment="Label of the window to edit the fields of a note type. This text can\'t be found in Ankidroid directly">Керувати полями</string>
     <!--Toasts-->
     <string name="toast_last_model">Ви не можете видалити останній тип примітки</string>
-    <string name="toast_last_field">Має бути принаймні одне поле в типі записів</string>
+    <string name="toast_last_field">Типи записів повинні містити хоча б одне поле</string>
     <string name="toast_empty_name">Необхідно ввести ім\'я</string>
     <string name="toast_duplicate_field">Ім\'я поля вже використовується</string>
     <string name="toast_out_of_range">Введіть дійсне значення</string>
@@ -45,7 +45,7 @@
         <item quantity="one">%d запис</item>
         <item quantity="few">%d записи</item>
         <item quantity="many">%d записів</item>
-        <item quantity="other">%d записи</item>
+        <item quantity="other">%d записів</item>
     </plurals>
     <!--Browser-->
     <string name="model_browser_delete">Видалити тип запису</string>
@@ -57,7 +57,7 @@
     <string name="model_field_editor_language_hint_dialog_success_result">Встановити %s як мову підказок </string>
     <!--Field Editing-->
     <string name="model_field_editor_title">Редагувати поля</string>
-    <string name="model_field_editor_add">Додати поле</string>
+    <string name="model_field_editor_add" maxLength="28">Додати поле</string>
     <string name="model_field_editor_delete">Видалити поле</string>
     <string name="model_field_editor_rename">Перейменувати поле</string>
     <string name="model_field_editor_language_hint">Встановлення мови підказок клавіатури</string>
@@ -74,7 +74,7 @@
     <!--This prefix is used for standard note types-->
     <string name="model_browser_add_clone">Клонувати: %1$s </string>
     <!--Browser Appearance-->
-    <string name="card_template_browser_appearance_summary">Введіть шаблон, який використовує оглядач карт для відображення Вашої картки. Використовуйте його для надання точнішої відповіді.\n\n Шаблон передньої сторони \n«Столицею {{Країна}} є »\nможна стиснути в переглядачі карток до\n«Столиця: {{Країна}}»</string>
+    <string name="card_template_browser_appearance_summary">Введіть шаблон, який використовуватиме переглядач карток для відображення ваших карток. Використовуйте це для відображення стислішої відповіді.\n\nШаблон передньої сторони\n\"Столицею {{Країна}} є:\"\nможна стиснути в переглядачі карток до\n\"Столиця:{{Країна}}\"</string>
     <string name="card_template_browser_appearance_question_format">Формат запитання</string>
     <string name="card_template_browser_appearance_answer_format">Формат відповіді</string>
     <string name="card_template_browser_appearance_restore_default_dialog">Відновити значення за замовчуванням?</string>
@@ -85,5 +85,5 @@
     <string name="model_manager_deck_override_added_message">«%2$s» встановлена як колода за замовчуванням для «%1$s»</string>
     <string name="model_manager_deck_override_removed_message">Видалено колоду за замовчуванням для «%s»</string>
     <string name="deck_override_explanation">Оберіть колоду для розміщення нових «%s» карток</string>
-    <string name="deck_picker_dialog_filter_decks">Фільтрувати колоди</string>
+    <string name="deck_picker_dialog_filter_decks" maxLength="28">Фільтрувати колоди</string>
 </resources>

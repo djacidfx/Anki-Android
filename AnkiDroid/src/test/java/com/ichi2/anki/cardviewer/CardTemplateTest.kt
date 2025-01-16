@@ -18,7 +18,7 @@ package com.ichi2.anki.cardviewer
 import android.annotation.SuppressLint
 import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.*
+import org.hamcrest.Matchers.equalTo
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 
@@ -30,8 +30,19 @@ class CardTemplateTest {
         val style = "bar"
         val cardClass = "baz"
         val script = "script"
-        val result = CardTemplate(data).render(content, style, script, cardClass)
-        assertThat(result, equalTo(data.replace("::content::", content).replace("::style::", style).replace("::class::", cardClass).replace("::script::", script)))
+        val result = CardTemplate(data).render(content, style, script, cardClass).html
+        assertThat(
+            result,
+            equalTo(
+                data
+                    .replace(
+                        "::content::",
+                        content,
+                    ).replace("::style::", style)
+                    .replace("::class::", cardClass)
+                    .replace("::script::", script),
+            ),
+        )
     }
 
     @Test

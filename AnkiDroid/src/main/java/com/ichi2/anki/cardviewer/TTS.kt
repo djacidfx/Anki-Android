@@ -22,7 +22,10 @@ import android.content.Context
 import com.ichi2.anki.CardUtils
 import com.ichi2.anki.R
 import com.ichi2.anki.ReadText
+import com.ichi2.anki.provider.pureAnswer
+import com.ichi2.anki.reviewer.CardSide
 import com.ichi2.libanki.Card
+import com.ichi2.libanki.Collection
 import com.ichi2.libanki.TTSTag
 import com.ichi2.libanki.Utils
 import com.ichi2.libanki.template.TemplateFilters
@@ -41,13 +44,15 @@ class TTS {
      * @param card The card to check the type of before determining the ordinal.
      * @return The card ordinal. If it's a Cloze card, returns 0.
      */
-    private fun getOrdUsingCardType(card: Card): Int {
-        return if (card.model().isCloze) {
+    private fun getOrdUsingCardType(
+        card: Card,
+        col: Collection,
+    ): Int =
+        if (card.noteType(col).isCloze) {
             0
         } else {
             card.ord
         }
-    }
 
     /**
      * Reads the text (using TTS) for the given side of a card.
@@ -55,8 +60,13 @@ class TTS {
      * @param card     The card to play TTS for
      * @param cardSide The side of the current card to play TTS for
      */
-    fun readCardText(ttsTags: List<TTSTag>, card: Card, cardSide: SoundSide) {
-        ReadText.readCardSide(ttsTags, cardSide, CardUtils.getDeckIdForCard(card), getOrdUsingCardType(card))
+    fun readCardText(
+        col: Collection,
+        ttsTags: List<TTSTag>,
+        card: Card,
+        cardSide: CardSide,
+    ) {
+        ReadText.readCardSide(ttsTags, cardSide, CardUtils.getDeckIdForCard(card), getOrdUsingCardType(card, col))
     }
 
     /**
@@ -65,24 +75,35 @@ class TTS {
      * @param card The card to read text from
      * @param qa   The card question or card answer
      */
-    fun selectTts(context: Context, card: Card, qa: SoundSide) {
-        val textToRead = if (qa == SoundSide.QUESTION) card.question(true) else card.pureAnswer
+    fun selectTts(
+        col: Collection,
+        context: Context,
+        card: Card,
+        qa: CardSide,
+    ) {
+        val textToRead = if (qa == CardSide.QUESTION) card.question(col, true) else card.pureAnswer(col)
         // get the text from the card
         ReadText.selectTts(
             getTextForTts(context, textToRead),
             CardUtils.getDeckIdForCard(card),
-            getOrdUsingCardType(card),
-            qa
+            getOrdUsingCardType(card, col),
+            qa,
         )
     }
 
-    private fun getTextForTts(context: Context, text: String): String {
+    private fun getTextForTts(
+        context: Context,
+        text: String,
+    ): String {
         val clozeReplacement = context.getString(R.string.reviewer_tts_cloze_spoken_replacement)
         val clozeReplaced = text.replace(TemplateFilters.CLOZE_DELETION_REPLACEMENT, clozeReplacement)
         return Utils.stripHTML(clozeReplaced)
     }
 
-    fun initialize(ctx: Context, listener: ReadText.ReadTextListener) {
+    fun initialize(
+        ctx: Context,
+        listener: ReadText.ReadTextListener,
+    ) {
         if (!enabled) {
             return
         }

@@ -16,7 +16,7 @@
 package com.ichi2.anki.lint.rules
 
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.lint.checks.infrastructure.TestLintTask.*
+import com.android.tools.lint.checks.infrastructure.TestLintTask.lint
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 
@@ -124,9 +124,8 @@ class DuplicateCrowdInStringsTest {
             .allowCompilationErrors()
             .files(
                 TestFiles.xml("res/values/constants.xml", mIgnoredFile),
-                TestFiles.xml("res/values/strings.xml", mNotIgnored)
-            )
-            .issues(DuplicateCrowdInStrings.ISSUE)
+                TestFiles.xml("res/values/strings.xml", mNotIgnored),
+            ).issues(DuplicateCrowdInStrings.ISSUE)
             .run()
             .expectErrorCount(0)
     }

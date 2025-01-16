@@ -1,5 +1,5 @@
 <p align="center">
-<img src="docs/graphics/logos/banner_readme.png"/>
+<img alt="" src="docs/graphics/logos/banner_readme.png"/>
 </p>
 
 <a href="https://github.com/ankidroid/Anki-Android/releases"><img src="https://img.shields.io/github/v/release/ankidroid/Anki-Android" alt="release"/></a>
@@ -54,6 +54,12 @@ Install
 
 </div>
 
+Signing certificate fingerprint to [verify](https://developer.android.com/studio/command-line/apksigner#usage-verify) the APK:
+```
+SHA-256: 2071534f0f4b5e54ae952dd275d70da6e3459ee69909d2ab1b4843c4c5b21a45 
+SHA-1: f24e06a3657b190a12671100402df32d7b9b3d36 
+```
+
 Wiki
 ----
 View [Wiki](https://github.com/ankidroid/Anki-Android/wiki)
@@ -74,7 +80,7 @@ Join Us On
 <a href="https://discord.gg/qjzcRTx"><img src="docs/graphics/logos/discord_logo_color.png" height="50px"/></a>
 <a href="https://www.reddit.com/r/Anki"><img src="docs/graphics/logos/reddit_logo_color.png" height="50px"/></a>
 <a href="https://www.facebook.com/AnkiDroid/"><img src="docs/graphics/logos/facebook_logo_color.png" height="50px"/></a>
-<a href="https://twitter.com/ankidroid"><img src="docs/graphics/logos/twitter_logo_color.png" height="50px"/></a>
+<a href="https://x.com/ankidroid"><img src="docs/graphics/logos/twitter_logo.png" height="50px"/></a>
 <a href="https://forums.ankiweb.net/"><img src="/docs/graphics/logos/anki_forums_logo.png" height="50px"/></a>
 
 ## Credits
@@ -89,7 +95,7 @@ Thanks to these awesome code contributors who keep this project going
 
 ### [Sponsors](https://opencollective.com/ankidroid#sponsor)
 <a href="https://opencollective.com/ankidroid#sponsor" target="_blank">
-  <img src="https://opencollective.com/Ankidroid/sponsors.svg?width=890" />
+  <img alt="AnkiDroid Sponsors" src="https://opencollective.com/Ankidroid/sponsors.svg?width=890" />
 </a>
 
 ### [Backers](https://opencollective.com/ankidroid#backer)
@@ -100,7 +106,7 @@ A big thank you to each of our backers 🙏
 <p>Your generous donations mean the world to us, and we can't express our gratitude enough. Your support fuels our mission and helps us make a real difference</p>
 
 <a href="https://opencollective.com/Ankidroid/donate" target="_blank">
-  <img src="https://opencollective.com/Ankidroid/donate/button@2x.png?color=blue" width=200 />
+  <img alt="Donate to AnkiDroid" src="https://opencollective.com/Ankidroid/donate/button@2x.png?color=blue" width=200 />
 </a>
 
 ### [Translators](https://crowdin.com/project/ankidroid/activity-stream)
@@ -111,3 +117,4 @@ License
 -------
 * [GPL-3.0 License](https://github.com/ankidroid/Anki-Android/blob/main/COPYING)
 * [AGPL-3.0 Licence](https://github.com/ankitects/anki/blob/main/LICENSE) for some part of the back-end
+* [LGPL-3.0 License](https://github.com/ankidroid/Anki-Android/blob/main/api/COPYING.LESSER) for the AnkiDroid API

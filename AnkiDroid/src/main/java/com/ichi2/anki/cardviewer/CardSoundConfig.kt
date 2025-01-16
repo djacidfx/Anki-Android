@@ -18,7 +18,6 @@ package com.ichi2.anki.cardviewer
 
 import androidx.annotation.CheckResult
 import com.ichi2.anki.CardUtils
-import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.libanki.Card
 import com.ichi2.libanki.Collection
 import com.ichi2.libanki.DeckId
@@ -32,27 +31,30 @@ import timber.log.Timber
  * `false`: only replay the answer
  * @param autoplay deck option: "Don't play audio automatically"
  */
-class CardSoundConfig(val replayQuestion: Boolean, val autoplay: Boolean, val deckId: DeckId) {
+class CardSoundConfig(
+    val replayQuestion: Boolean,
+    val autoplay: Boolean,
+    val deckId: DeckId,
+) {
     // PERF: technically, we can go further with options groups
     @CheckResult
     fun appliesTo(card: Card): Boolean = CardUtils.getDeckIdForCard(card) == deckId
 
     companion object {
         @CheckResult
-        fun create(collection: Collection, card: Card): CardSoundConfig {
+        fun create(
+            col: Collection,
+            card: Card,
+        ): CardSoundConfig {
             Timber.v("start loading SoundConfig")
-            val deckConfig = collection.decks.confForDid(CardUtils.getDeckIdForCard(card))
 
-            val autoPlay = deckConfig.optBoolean("autoplay", false)
+            val autoPlay = card.autoplay(col)
 
-            val replayQuestion: Boolean = deckConfig.optBoolean("replayq", true)
+            val replayQuestion: Boolean = card.replayQuestionAudioOnAnswerSide(col)
 
             return CardSoundConfig(replayQuestion, autoPlay, card.did).apply {
                 Timber.d("loaded SoundConfig: %s", this)
             }
         }
-
-        @CheckResult
-        suspend fun create(card: Card): CardSoundConfig = withCol { create(this, card) }
     }
 }

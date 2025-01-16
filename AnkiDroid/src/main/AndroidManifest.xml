@@ -21,11 +21,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:installLocation="auto">
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+
     <uses-feature android:name="android.hardware.audio.output" android:required="false" />
     <uses-feature android:name="android.software.app_widgets" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="androidx.draganddrop" android:required="false"/>
     <!-- `ScopedStorage` lint error is ignored:
         the recommended change is setting maxSDkVersion
          but this means preserveLegacyExternalStorage is inactive, and users do not have access to
@@ -40,6 +41,8 @@
     <uses-permission android:name="android.permission.GET_PACKAGE_SIZE" android:maxSdkVersion="25" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Disabled on Play Store -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <permission android:name="${applicationId}.permission.READ_WRITE_DATABASE"
@@ -69,6 +72,9 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 
@@ -104,10 +110,6 @@
             android:label="@string/drawing"
             android:exported="false"
             android:configChanges="keyboardHidden|orientation|screenSize"
-            />
-        <activity
-            android:name="com.ichi2.anki.pages.PagesActivity"
-            android:exported="true"
             />
         <activity
             android:name="com.ichi2.anki.IntentHandler"
@@ -175,19 +177,85 @@
                     android:pathPattern=".*\\.colpkg"
                     android:scheme="file"
                     />
-
+                <!-- tsv files -->
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.tsv"
+                    android:scheme="http"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.tsv"
+                    android:scheme="https"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.tsv"
+                    android:scheme="content"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.tsv"
+                    android:scheme="file"
+                    />
+                <!-- csv files -->
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.csv"
+                    android:scheme="http"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.csv"
+                    android:scheme="https"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.csv"
+                    android:scheme="content"
+                    />
+                <data
+                    android:host="*"
+                    android:mimeType="*/*"
+                    android:pathPattern=".*\\.csv"
+                    android:scheme="file"
+                    />
             </intent-filter>
             <!-- MIME type matcher for .apkg files coming from providers like gmail which hide the file extension -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <action android:name="android.intent.action.SEND"/>
                 <data android:mimeType="application/apkg"/>
                 <data android:mimeType="application/colpkg"/>
                 <data android:mimeType="application/vnd.anki"/>
                 <data android:mimeType="application/x-apkg"/>
                 <data android:mimeType="application/x-colpkg"/>
                 <data android:mimeType="application/octet-stream"/>
-                <data android:mimeType="application/zip"/>
+                <data android:mimeType="text/tab-separated-values"/>
+                <data android:mimeType="text/comma-separated-values"/>
+            </intent-filter>
+
+            <!-- Keep it separate as when sharing image AnkiDroid would be shown with Image Occlusion label -->
+            <intent-filter android:label="@string/image_occlusion">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/jpg" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/ico" />
+                <data android:mimeType="image/webp" />
+                <data android:mimeType="image/tiff" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="image/svg" />
             </intent-filter>
 
             <!-- Tasker DO_SYNC intent -->
@@ -204,7 +272,6 @@
             />
         <activity
             android:name="com.ichi2.anki.StudyOptionsActivity"
-            android:label="StudyOptions"
             android:exported="false"
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:parentActivityName=".DeckPicker"
@@ -275,7 +342,11 @@
             android:configChanges="keyboardHidden|orientation|screenSize"
             />
         <activity
-            android:name="com.ichi2.anki.preferences.Preferences"
+            android:name=".multimedia.MultimediaActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="false" />
+        <activity
+            android:name="com.ichi2.anki.preferences.PreferencesActivity"
             android:exported="false"
             android:configChanges="screenSize"
             >
@@ -300,7 +371,7 @@
             android:name="com.ichi2.anki.AnkiCardContextMenuAction"
             android:label="@string/context_menu_anki_card_label"
             android:enabled="true"
-            android:targetActivity=".NoteEditor"
+            android:targetActivity=".IntentHandler2"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PROCESS_TEXT" />
@@ -309,7 +380,7 @@
             </intent-filter>
         </activity-alias>
         <activity
-            android:name="com.ichi2.anki.NoteEditor"
+            android:name="com.ichi2.anki.IntentHandler2"
             android:label="@string/fact_adder_intent_title"
             android:theme="@style/Theme_Dark.Launcher"
             android:exported="true"
@@ -324,12 +395,21 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <!-- Keep it separate as when sharing image AnkiDroid would be shown with Add Image label -->
+            <intent-filter android:label="@string/multimedia_editor_popup_image">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/jpg" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/ico" />
+                <data android:mimeType="image/webp" />
+                <data android:mimeType="image/tiff" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="image/svg" />
+            </intent-filter>
         </activity>
-        <activity
-            android:name="com.canhub.cropper.CropImageActivity"
-            android:exported="true"
-            android:configChanges="keyboardHidden|orientation|screenSize"
-            android:theme="@style/Base.Theme.AppCompat" />
         <activity
             android:name="com.ichi2.anki.analytics.AnkiDroidCrashReportDialog"
             android:theme="@android:style/Theme.DeviceDefault.Dialog"
@@ -339,32 +419,21 @@
             android:finishOnTaskLaunch="true"
             />
         <activity
-            android:name="com.ichi2.anki.Previewer"
-            android:label="@string/preview_title"
-            android:exported="false"
-            />
-        <activity
             android:name="com.ichi2.anki.SingleFragmentActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize"
             />
         <activity
-            android:name="com.ichi2.anki.CardTemplatePreviewer"
-            android:label="@string/preview_title"
+            android:name="com.ichi2.anki.previewer.CardViewerActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize"
             />
-        <activity
-            android:name=".multimediacard.activity.MultimediaEditFieldActivity"
-            android:label="@string/title_activity_edit_text"
-            android:exported="false"
-            android:configChanges="keyboardHidden|orientation|screenSize"
-            >
-        </activity>
         <activity
             android:name="com.ichi2.anki.CardTemplateEditor"
             android:label="@string/title_activity_template_editor"
             android:exported="false"
             android:configChanges="keyboardHidden|orientation|screenSize"
-            android:windowSoftInputMode="stateAlwaysHidden|adjustPan"
+            android:windowSoftInputMode="stateAlwaysHidden|adjustResize"
             >
         </activity>
         <activity
@@ -390,7 +459,10 @@
             android:theme="@style/Theme.AppCompat.NoActionBar"
             android:configChanges="keyboardHidden|screenSize" />
 
-
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"
@@ -402,11 +474,8 @@
         <!-- Service to perform web API queries -->
         <service android:name="com.ichi2.widget.AnkiDroidWidgetSmall$UpdateService" />
 
-        <service
-            android:name="com.ichi2.anki.services.MigrationService"
-            android:foregroundServiceType="dataSync"
-            />
 
+        <!-- Don't disable/enable the widgets here until min API>=31, see issue #15747 & https://issuetracker.google.com/issues/36914010 -->
         <!-- small widget -->
         <receiver
             android:name="com.ichi2.widget.AnkiDroidWidgetSmall"
@@ -436,6 +505,67 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_provider_add_note"
                 />
+        </receiver>
+
+        <!-- A widget that displays a few decks's name and number of cards to review on the Android home screen.
+             The way to add it depends on the phone. It usually consists in a long press on the screen, followed by finding a "widget" button"-->
+        <receiver
+            android:name="com.ichi2.widget.deckpicker.DeckPickerWidget"
+            android:label="@string/deck_picker_widget_description"
+            android:exported="false"
+            >
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_provider_deck_picker" />
+        </receiver>
+
+        <!-- Configuration view for the DeckPickerWidget above.
+             It is opened when adding a new deck picker widget and
+             by configuration button which appears when the widget is hold or resized.-->
+        <activity
+            android:name="com.ichi2.widget.deckpicker.DeckPickerWidgetConfig"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- A widget that displays a deck name and number of cards to review on the Android home screen.
+             The way to add it depends on the phone. It usually consists in a long press on the screen, followed by finding a "widget" button"-->
+        <receiver
+            android:name="com.ichi2.widget.cardanalysis.CardAnalysisWidget"
+            android:label="@string/card_analysis_extra_widget_description"
+            android:exported="false"
+            >
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_provider_card_analysis" />
+        </receiver>
+
+        <!-- Configuration view for the CardAnalysisWidget above.
+             It is opened when adding a new widget and
+             by configuration button which appears when the widget is hold or resized.-->
+        <activity
+            android:name="com.ichi2.widget.cardanalysis.CardAnalysisWidgetConfig"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <receiver android:name="com.ichi2.widget.WidgetPermissionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.ichi2.widget.UPDATE_WIDGET" />
+            </intent-filter>
         </receiver>
 
         <receiver
@@ -499,6 +629,27 @@
          -->
         <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
 
+        <!--
+        Transparent Single instance activity, and is cleared from recent tasks as we want to mimic
+        the behaviour of not opening the application and still be able to access the dialog.
+        Task affinity allows us to separate the activity allowing us to define that an activity belongs to a
+        different task, it ensures that the activity does not interfere with other tasks in our application.
+         -->
+        <activity
+            android:name="com.ichi2.anki.instantnoteeditor.InstantNoteEditorActivity"
+            android:exported="true"
+            android:label="@string/instant_card"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AppCompat.Transparent.NoActionBar" >
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
 
 
         <provider
@@ -506,10 +657,20 @@
             android:authorities="${applicationId}.flashcards"
             android:enabled="true"
             android:exported="true"
+            tools:ignore="ExportedContentProvider"
             >
             <meta-data android:name="com.ichi2.anki.provider.spec" android:value="2" />
         </provider>
-
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="remove">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.apkgfileprovider"

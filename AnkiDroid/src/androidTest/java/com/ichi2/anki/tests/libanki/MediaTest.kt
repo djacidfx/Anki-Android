@@ -19,10 +19,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.anki.BackupManager
 import com.ichi2.anki.tests.InstrumentedTest
 import com.ichi2.anki.testutil.GrantStoragePermission
+import com.ichi2.anki.testutil.addNote
 import com.ichi2.libanki.Collection
 import com.ichi2.libanki.Media
 import com.ichi2.libanki.exception.EmptyMediaException
-import org.junit.*
+import org.junit.After
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileOutputStream
@@ -37,7 +41,7 @@ import kotlin.test.fail
  */
 @RunWith(AndroidJUnit4::class)
 class MediaTest : InstrumentedTest() {
-    private var mTestCol: Collection? = null
+    private var testCol: Collection? = null
 
     @get:Rule
     var runtimePermissionRule = GrantStoragePermission.instance
@@ -45,12 +49,12 @@ class MediaTest : InstrumentedTest() {
     @Before
     @Throws(IOException::class)
     fun setUp() {
-        mTestCol = emptyCol
+        testCol = emptyCol
     }
 
     @After
     fun tearDown() {
-        mTestCol!!.close()
+        testCol!!.close()
     }
 
     @Test
@@ -65,15 +69,15 @@ class MediaTest : InstrumentedTest() {
             os.write("hello".toByteArray())
         }
         // new file, should preserve name
-        val r = mTestCol!!.media.addFile(path)
+        val r = testCol!!.media.addFile(path)
         assertEquals("foo.jpg", r)
         // adding the same file again should not create a duplicate
-        assertEquals("foo.jpg", mTestCol!!.media.addFile(path))
+        assertEquals("foo.jpg", testCol!!.media.addFile(path))
         // but if it has a different md5, it should
         FileOutputStream(path, false).use { os ->
             os.write("world".toByteArray())
         }
-        assertNotEquals("foo.jpg", mTestCol!!.media.addFile(path))
+        assertNotEquals("foo.jpg", testCol!!.media.addFile(path))
     }
 
     @Test
@@ -88,7 +92,7 @@ class MediaTest : InstrumentedTest() {
 
         // new file, should preserve name
         try {
-            mTestCol!!.media.addFile(path)
+            testCol!!.media.addFile(path)
             fail("exception should be thrown")
         } catch (mediaException: EmptyMediaException) {
             // all good
@@ -99,39 +103,41 @@ class MediaTest : InstrumentedTest() {
     @Throws(IOException::class, EmptyMediaException::class)
     fun testDeckIntegration() {
         // create a media dir
-        mTestCol!!.media.dir
+        testCol!!.media.dir
         // Put a file into it
         val file = createNonEmptyFile("fake.png")
-        mTestCol!!.media.addFile(file)
+        testCol!!.media.addFile(file)
         // add a note which references it
-        var f = mTestCol!!.newNote()
+        var f = testCol!!.newNote()
         f.setField(0, "one")
         f.setField(1, "<img src='fake.png'>")
-        mTestCol!!.addNote(f)
+        testCol!!.addNote(f)
         // and one which references a non-existent file
-        f = mTestCol!!.newNote()
+        f = testCol!!.newNote()
         f.setField(0, "one")
         f.setField(1, "<img src='fake2.png'>")
-        mTestCol!!.addNote(f)
+        testCol!!.addNote(f)
         // and add another file which isn't used
-        FileOutputStream(File(mTestCol!!.media.dir, "foo.jpg"), false).use { os ->
+        FileOutputStream(File(testCol!!.media.dir, "foo.jpg"), false).use { os ->
             os.write("test".toByteArray())
         }
         // check media
-        val ret = mTestCol!!.media.check()
+        val ret = testCol!!.media.check()
         var expected = listOf("fake2.png")
         var actual = ret.missingFileNames.toMutableList()
         actual.retainAll(expected)
         assertEquals(expected.size, actual.size)
         expected = listOf("foo.jpg")
         actual = ret.unusedFileNames.toMutableList()
-        actual.retainAll(expected)
+        actual.retainAll(expected.toSet())
         assertEquals(expected.size, actual.size)
     }
 
     @Suppress("SpellCheckingInspection")
     @Throws(IOException::class)
-    private fun createNonEmptyFile(@Suppress("SameParameterValue") fileName: String): File {
+    private fun createNonEmptyFile(
+        @Suppress("SameParameterValue") fileName: String,
+    ): File {
         val file = File(testDir, fileName)
         FileOutputStream(file, false).use { os -> os.write("a".toByteArray()) }
         return file

@@ -19,8 +19,10 @@
 
 package com.ichi2.anki.multimediacard.fields
 
+import android.net.Uri
 import androidx.annotation.CheckResult
 import androidx.annotation.VisibleForTesting
+import com.ichi2.annotations.NeedsTest
 import com.ichi2.libanki.Collection
 import com.ichi2.utils.KotlinCleanup
 import org.jsoup.Jsoup
@@ -31,59 +33,64 @@ import java.io.File
  * Field with an image.
  */
 @KotlinCleanup("convert properties to single-line overrides")
-class ImageField : FieldBase(), IField {
+class ImageField :
+    FieldBase(),
+    IField {
     @get:JvmName("getImagePath_unused")
     var extraImagePathRef: String? = null
-    private var mName: String? = null
+    private var _name: String? = null
 
     override val type: EFieldType = EFieldType.IMAGE
 
     override val isModified: Boolean
         get() = thisModified
 
-    override var imagePath: String?
+    override var mediaPath: String?
         get() = extraImagePathRef
         set(value) {
             extraImagePathRef = value
-            setThisModified()
+            thisModified = true
         }
-
-    override var audioPath: String? = null
 
     override var text: String? = null
 
     override var hasTemporaryMedia: Boolean = false
 
     override var name: String?
-        get() = mName
+        get() = _name
         set(value) {
-            mName = value
+            _name = value
         }
 
     override val formattedValue: String
         get() {
-            val file = File(imagePath!!)
+            val file = File(mediaPath!!)
             return formatImageFileName(file)
         }
 
-    override fun setFormattedString(col: Collection, value: String) {
+    override fun setFormattedString(
+        col: Collection,
+        value: String,
+    ) {
         extraImagePathRef = getImageFullPath(col, value)
     }
 
     companion object {
-        private const val serialVersionUID = 4431611060655809687L
-
         @VisibleForTesting
-        fun formatImageFileName(file: File): String {
-            return if (file.exists()) {
-                """<img src="${file.name}">"""
+        @NeedsTest("files with HTML illegal chars can be imported and rendered")
+        fun formatImageFileName(file: File): String =
+            if (file.exists()) {
+                val encodedName = Uri.encode(file.name)
+                """<img src="$encodedName">"""
             } else {
                 ""
             }
-        }
 
         @VisibleForTesting
-        fun getImageFullPath(col: Collection, value: String): String {
+        fun getImageFullPath(
+            col: Collection,
+            value: String,
+        ): String {
             val path = parseImageSrcFromHtml(value)
 
             return if (path.isNotEmpty()) {

@@ -18,39 +18,27 @@ import android.content.Intent
 import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
-import androidx.core.os.bundleOf
 import com.ichi2.anki.CollectionManager
 import com.ichi2.anki.R
 import com.ichi2.anki.hideShowButtonCss
 
 class AnkiPackageImporterFragment : PageFragment() {
-    override val title: String
-        get() = resources.getString(R.string.menu_import)
-    override val pageName: String
-        get() = "import-page"
-    override lateinit var webViewClient: PageWebViewClient
-    override var webChromeClient: PageChromeClient = PageChromeClient()
-    private lateinit var backCallback: OnBackPressedCallback
-
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreateWebViewClient(savedInstanceState: Bundle?): PageWebViewClient {
         // the back callback is only enabled when import is running and showing progress
-        backCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() {
-                CollectionManager.getBackend().setWantsAbort()
-                // once triggered the callback is not needed as the import process can't be resumed
-                remove()
+        val backCallback =
+            object : OnBackPressedCallback(false) {
+                override fun handleOnBackPressed() {
+                    CollectionManager.getBackend().setWantsAbort()
+                    // once triggered the callback is not needed as the import process can't be resumed
+                    remove()
+                }
             }
-        }
-        val path = arguments?.getString(ARG_FILE_PATH)
-            ?: throw IllegalStateException("No path provided for apkg package to import")
-        webViewClient = AnkiPackageImporterWebViewClient(path, backCallback)
-        super.onCreate(savedInstanceState)
         requireActivity().onBackPressedDispatcher.addCallback(this, backCallback)
+        return AnkiPackageImporterWebViewClient(backCallback)
     }
 
     class AnkiPackageImporterWebViewClient(
-        private val path: String,
-        private val backCallback: OnBackPressedCallback
+        private val backCallback: OnBackPressedCallback,
     ) : PageWebViewClient() {
         /**
          * Ideally, to handle the state of the back callback, we would just need to check for
@@ -59,34 +47,40 @@ class AnkiPackageImporterFragment : PageFragment() {
          */
         private var isDone = false
 
-        override fun onPageFinished(view: WebView?, url: String?) {
-            val params = """{ type: "json_file", path: "$path"}"""
-            // https://github.com/ankitects/anki/blob/main/ts/import-page/index.ts
-            view!!.evaluateJavascript("anki.setupImportPage($params);$hideShowButtonCss;") {
+        override fun onPageFinished(
+            view: WebView?,
+            url: String?,
+        ) {
+            view!!.evaluateJavascript(hideShowButtonCss) {
                 super.onPageFinished(view, url)
             }
         }
 
-        override fun onLoadResource(view: WebView?, url: String?) {
+        override fun onLoadResource(
+            view: WebView?,
+            url: String?,
+        ) {
             super.onLoadResource(view, url)
-            backCallback.isEnabled = when {
-                url == null -> false
-                url.endsWith("latestProgress") && !isDone -> true
-                url.endsWith("importDone") -> {
-                    isDone = true // import was done so disable any back callback changes after this call
-                    false
+            backCallback.isEnabled =
+                when {
+                    url == null -> false
+                    url.endsWith("latestProgress") && !isDone -> true
+                    url.endsWith("importDone") -> {
+                        isDone = true // import was done so disable any back callback changes after this call
+                        false
+                    }
+                    else -> false
                 }
-                else -> false
-            }
         }
     }
 
     companion object {
-        private const val ARG_FILE_PATH = "arg_file_path"
-
-        fun getIntent(context: Context, filePath: String): Intent {
-            val args = bundleOf(ARG_FILE_PATH to filePath)
-            return PagesActivity.getIntent(context, AnkiPackageImporterFragment::class, args)
+        fun getIntent(
+            context: Context,
+            filePath: String,
+        ): Intent {
+            val title = context.getString(R.string.menu_import)
+            return getIntent(context, "import-anki-package$filePath", title, AnkiPackageImporterFragment::class)
         }
     }
 }

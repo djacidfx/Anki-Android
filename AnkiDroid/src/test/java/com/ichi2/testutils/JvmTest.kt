@@ -32,47 +32,62 @@ import org.hamcrest.Matcher
 import org.junit.After
 import org.junit.Assume
 import org.junit.Before
+import org.junit.Rule
+import org.junit.rules.TestName
+import org.robolectric.junit.rules.TimeoutRule
 import timber.log.Timber
 import timber.log.Timber.Forest.plant
 
 open class JvmTest : TestClass {
+    @get:Rule
+    val timeoutRule: TimeoutRule = TimeoutRule.seconds(60)
+
+    @get:Rule
+    val testName = TestName()
+
     private fun maybeSetupBackend() {
         RustBackendLoader.ensureSetup()
     }
 
     override val col: Collection
         get() {
-            if (col_ == null) {
-                col_ = CollectionManager.getColUnsafe()
+            if (_col == null) {
+                _col = CollectionManager.getColUnsafe()
             }
-            return col_!!
+            return _col!!
         }
 
-    private var col_: Collection? = null
+    private var _col: Collection? = null
 
     @Before
     @CallSuper
     open fun setUp() {
+        println("""-- executing test "${testName.methodName}"""")
         TimeManager.resetWith(MockTime(2020, 7, 7, 7, 0, 0, 0, 10))
+
+        plant(
+            object : Timber.DebugTree() {
+                @SuppressLint("PrintStackTraceUsage")
+                override fun log(
+                    priority: Int,
+                    tag: String?,
+                    message: String,
+                    t: Throwable?,
+                ) {
+                    // This is noisy in test environments
+                    if (tag == "Backend\$checkMainThreadOp") {
+                        return
+                    }
+                    // use println(): Timber may not work under the Jvm
+                    println("$tag: $message")
+                    t?.printStackTrace()
+                }
+            },
+        )
 
         ChangeManager.clearSubscribers()
 
         maybeSetupBackend()
-
-        plant(object : Timber.DebugTree() {
-            @SuppressLint("PrintStackTraceUsage")
-            override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-                // This is noisy in test environments
-                if (tag == "Backend\$checkMainThreadOp") {
-                    return
-                }
-                // use println(): Timber may not work under the Jvm
-                System.out.println(tag + ": " + message)
-                if (t != null) {
-                    t.printStackTrace()
-                }
-            }
-        })
 
         Storage.setUseInMemory(true)
     }
@@ -82,7 +97,7 @@ open class JvmTest : TestClass {
     open fun tearDown() {
         try {
             // If you don't tear down the database you'll get unexpected IllegalStateExceptions related to connections
-            col_?.close()
+            _col?.close()
         } catch (ex: BackendException) {
             if ("CollectionNotOpen" == ex.message) {
                 Timber.w(ex, "Collection was already disposed - may have been a problem")
@@ -92,13 +107,17 @@ open class JvmTest : TestClass {
         } finally {
             TimeManager.reset()
         }
-        col_ = null
+        _col = null
         Dispatchers.resetMain()
         runBlocking { CollectionManager.discardBackend() }
         Timber.uprootAll()
+        println("""-- completed test "${testName.methodName}"""")
     }
 
-    fun <T> assumeThat(actual: T, matcher: Matcher<T>?) {
+    fun <T> assumeThat(
+        actual: T,
+        matcher: Matcher<T>?,
+    ) {
         Assume.assumeThat(actual, matcher)
     }
 }

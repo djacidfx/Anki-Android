@@ -28,6 +28,7 @@ import com.ichi2.anki.R
 import com.ichi2.preferences.usingStyledAttributes
 import com.ichi2.ui.FixedTextView
 import com.ichi2.utils.Permissions
+import timber.log.Timber
 
 /**
  * Layout item that can be used to get a permission from the user.
@@ -47,7 +48,10 @@ import com.ichi2.utils.Permissions
  *
  * @see R.layout.permission_item
  */
-class PermissionItem(context: Context, attrs: AttributeSet) : FrameLayout(context, attrs) {
+class PermissionItem(
+    context: Context,
+    attrs: AttributeSet,
+) : FrameLayout(context, attrs) {
     private val switch: SwitchCompat
     val permissions: List<String>
     val isGranted get() = Permissions.hasAllPermissions(context, permissions)
@@ -55,18 +59,20 @@ class PermissionItem(context: Context, attrs: AttributeSet) : FrameLayout(contex
     init {
         LayoutInflater.from(context).inflate(R.layout.permission_item, this, true)
 
-        switch = findViewById<SwitchCompat>(R.id.switch_widget).apply {
-            isEnabled = true
-            setOnCheckedChangeListener { button, _ ->
-                button.isChecked = isGranted
+        switch =
+            findViewById<SwitchCompat>(R.id.switch_widget).apply {
+                isEnabled = true
+                setOnCheckedChangeListener { button, _ ->
+                    button.isChecked = isGranted
+                }
             }
-        }
 
-        permissions = context.usingStyledAttributes(attrs, R.styleable.PermissionItem) {
-            getTextArray(R.styleable.PermissionItem_permissions)?.map { it.toString() }
-                ?: getString(R.styleable.PermissionItem_permission)?.let { listOf(it) }
-                ?: throw IllegalArgumentException("Either app:permission or app:permissions should be set")
-        }
+        permissions =
+            context.usingStyledAttributes(attrs, R.styleable.PermissionItem) {
+                getTextArray(R.styleable.PermissionItem_permissions)?.map { it.toString() }
+                    ?: getString(R.styleable.PermissionItem_permission)?.let { listOf(it) }
+                    ?: throw IllegalArgumentException("Either app:permission or app:permissions should be set")
+            }
 
         context.withStyledAttributes(attrs, R.styleable.PermissionItem) {
             findViewById<FixedTextView>(R.id.title).text = getText(R.styleable.PermissionItem_permissionTitle)
@@ -81,7 +87,18 @@ class PermissionItem(context: Context, attrs: AttributeSet) : FrameLayout(contex
                 }
             }
         }
+        setOnClickListener {
+            if (!isGranted) {
+                Timber.i("Permission item clicked, requesting permission")
+                listener?.invoke()
+            } else {
+                switch.isChecked = !switch.isChecked
+            }
+        }
+        updateSwitchCheckedStatus()
     }
+
+    private var listener: (() -> Unit)? = null
 
     /**
      * Checks the switch if the permission is granted,
@@ -96,8 +113,10 @@ class PermissionItem(context: Context, attrs: AttributeSet) : FrameLayout(contex
      * The listener isn't invoked if the permission is already granted
      * */
     fun setOnSwitchClickListener(listener: () -> Unit) {
+        this.listener = listener
         switch.setOnClickListener {
             if (!isGranted) {
+                Timber.i("permission switch pressed")
                 listener.invoke()
             }
         }

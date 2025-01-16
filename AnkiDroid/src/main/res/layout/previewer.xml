@@ -2,8 +2,11 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="?attr/alternativeBackgroundColor"
     tools:context=".previewer.PreviewerFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -23,19 +26,29 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:navigationContentDescription="@string/abc_action_bar_up_description"
                 app:navigationIcon="?attr/homeAsUpIndicator"
-                app:menu="@menu/previewer2"
+                app:menu="@menu/previewer"
+                android:background="?attr/alternativeBackgroundColor"
                 />
 
         </com.google.android.material.appbar.AppBarLayout>
 
-        <WebView
-            android:id="@+id/webview"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/webview_container"
             android:layout_width="match_parent"
+            android:layout_marginHorizontal="8dp"
             android:layout_height="0dp"
-            android:background="@color/transparent"
             app:layout_constraintTop_toBottomOf="@id/appbar"
             app:layout_constraintBottom_toTopOf="@id/slider"
-            />
+            style="@style/CardView.ViewerStyle"
+            >
+
+            <WebView
+                android:id="@+id/webview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                />
+
+        </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.slider.Slider
             android:id="@+id/slider"
@@ -43,7 +56,7 @@
             android:layout_height="wrap_content"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/webview"
+            app:layout_constraintTop_toBottomOf="@id/webview_container"
 
             android:valueFrom="1"
             android:stepSize="1"
@@ -60,10 +73,8 @@
             app:icon="@drawable/ic_baseline_chevron_left_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/progress_indicator"
             app:layout_constraintTop_toBottomOf="@id/slider"
-            app:iconSize="32dp"
-            />
+            app:iconSize="32dp" />
 
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/progress_indicator"
@@ -74,8 +85,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toBottomOf="@id/slider"
             tools:text="421/732"
-            android:gravity="center_horizontal"/>
-
+            android:gravity="center_horizontal" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/show_next"
@@ -86,7 +96,6 @@
             app:icon="@drawable/ic_baseline_chevron_right_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/progress_indicator"
             app:layout_constraintTop_toBottomOf="@id/slider"
             app:iconSize="32dp" />
     </androidx.constraintlayout.widget.ConstraintLayout>

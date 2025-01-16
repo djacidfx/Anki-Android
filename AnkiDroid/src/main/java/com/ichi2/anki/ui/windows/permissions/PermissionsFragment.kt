@@ -20,16 +20,22 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.result.ActivityResultLauncher
+import androidx.annotation.LayoutRes
 import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.core.view.allViews
 import androidx.fragment.app.Fragment
-import com.ichi2.anki.UIUtils
+import com.ichi2.anki.showThemedToast
+import timber.log.Timber
 
 /**
  * Base class for constructing a permissions screen
+ *
+ * @see PermissionsActivity
  */
-abstract class PermissionsFragment : Fragment() {
+abstract class PermissionsFragment(
+    @LayoutRes contentLayoutId: Int,
+) : Fragment(contentLayoutId) {
     /**
      * All the [PermissionItem]s in the fragment.
      * Must be called ONLY AFTER [onCreateView]
@@ -37,11 +43,13 @@ abstract class PermissionsFragment : Fragment() {
     val permissionItems: List<PermissionItem>
         by lazy { view?.allViews?.filterIsInstance<PermissionItem>()?.toList() ?: emptyList() }
 
+    protected fun hasAllPermissions() = permissionItems.all { it.isGranted }
+
     override fun onResume() {
         super.onResume()
         permissionItems.forEach { it.updateSwitchCheckedStatus() }
         (activity as? PermissionsActivity)?.setContinueButtonEnabled(
-            permissionItems.all { it.isGranted }
+            hasAllPermissions(),
         )
     }
 
@@ -50,30 +58,35 @@ abstract class PermissionsFragment : Fragment() {
      * Lets a user grant any missing permissions which have been permanently denied
      */
     private fun openAppSettingsScreen() {
+        Timber.i("launching ACTION_APPLICATION_DETAILS_SETTINGS")
         startActivity(
             Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.fromParts("package", requireActivity().packageName, null)
-            )
+                Uri.fromParts("package", requireActivity().packageName, null),
+            ),
         )
     }
 
-    protected fun showToastAndOpenAppSettingsScreen(@StringRes message: Int) {
-        UIUtils.showThemedToast(requireContext(), message, false)
+    protected fun showToastAndOpenAppSettingsScreen(
+        @StringRes message: Int,
+    ) {
+        showThemedToast(requireContext(), message, false)
         openAppSettingsScreen()
     }
 
     /** Opens the Android 'MANAGE_ALL_FILES' page if the device provides this feature */
     @RequiresApi(Build.VERSION_CODES.R)
     protected fun ActivityResultLauncher<Intent>.showManageAllFilesScreen() {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-            Uri.fromParts("package", requireActivity().packageName, null)
-        )
+        val intent =
+            Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.fromParts("package", requireActivity().packageName, null),
+            )
 
         // From the docs: [ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION]
         // In some cases, a matching Activity may not exist, so ensure you safeguard against this.
         if (intent.resolveActivity(requireActivity().packageManager) != null) {
+            Timber.i("launching ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")
             launch(intent)
         } else {
             openAppSettingsScreen()

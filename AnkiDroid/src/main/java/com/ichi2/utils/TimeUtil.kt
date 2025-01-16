@@ -28,14 +28,42 @@ import timber.log.Timber
  * ```
  * -> `D/TimeUtilKt executed mHtmlGenerator in 23ms`
  */
-fun <T> measureTime(functionName: String? = "", function: () -> T): T {
+fun <T> measureTime(
+    functionName: String? = "",
+    function: () -> T,
+): T {
     val startTime = TimeManager.time.intTimeMS()
     val result = function()
     val endTime = TimeManager.time.intTimeMS()
     Timber.d(
         "executed %sin %dms",
         if (functionName.isNullOrEmpty()) "" else "$functionName ",
-        endTime - startTime
+        endTime - startTime,
+    )
+    return result
+}
+
+/**
+ * Measures the time to execute a `suspend` function
+ *
+ * Usage:
+ *
+ * ```kotlin
+ * val result = coMeasureTime("operation") { operation() }
+ * ```
+ * -> `D/TimeUtilKt executed mHtmlGenerator in 23ms`
+ */
+suspend fun <T> coMeasureTime(
+    functionName: String? = "",
+    function: suspend () -> T,
+): T {
+    val startTime = TimeManager.time.intTimeMS()
+    val result = function()
+    val endTime = TimeManager.time.intTimeMS()
+    Timber.d(
+        "executed %sin %dms",
+        if (functionName.isNullOrEmpty()) "" else "$functionName ",
+        endTime - startTime,
     )
     return result
 }
@@ -57,7 +85,9 @@ fun <T> measureTime(functionName: String? = "", function: () -> T): T {
  *
  * -> `D/Stopwatch executed page render in 67ms`
  */
-class Stopwatch(private val executionName: String?) {
+class Stopwatch(
+    private val executionName: String?,
+) {
     private var startTime = TimeManager.time.intTimeMS()
 
     fun logElapsed() {
@@ -65,15 +95,15 @@ class Stopwatch(private val executionName: String?) {
         Timber.d(
             "executed %sin %dms",
             if (executionName.isNullOrEmpty()) "" else "$executionName ",
-            endTime - startTime
+            endTime - startTime,
         )
     }
 
     fun reset() {
         startTime = TimeManager.time.intTimeMS()
     }
-    companion object {
 
+    companion object {
         /** initializes the stopwatch to ensure `stop()` before `start()` won't crash */
         @CheckResult
         fun init(executionName: String? = null) = Stopwatch(executionName)

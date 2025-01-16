@@ -16,95 +16,127 @@
 
 package com.ichi2.anki
 
+import android.Manifest
+import android.app.Application
 import android.content.Context
-import android.content.DialogInterface.*
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Looper
 import android.widget.TextView
 import androidx.annotation.CallSuper
-import androidx.annotation.CheckResult
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.edit
-import androidx.fragment.app.DialogFragment
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.WhichButton
-import com.afollestad.materialdialogs.actions.getActionButton
+import androidx.work.Configuration
+import androidx.work.testing.SynchronousExecutor
+import androidx.work.testing.WorkManagerTestInitHelper
+import com.ichi2.anki.CollectionManager.CollectionOpenFailure
 import com.ichi2.anki.dialogs.DialogHandler
-import com.ichi2.anki.dialogs.utils.FragmentTestActivity
 import com.ichi2.anki.preferences.sharedPrefs
-import com.ichi2.async.*
 import com.ichi2.compat.customtabs.CustomTabActivityHelper
-import com.ichi2.libanki.*
+import com.ichi2.libanki.Card
+import com.ichi2.libanki.ChangeManager
 import com.ichi2.libanki.Collection
+import com.ichi2.libanki.NotetypeJson
+import com.ichi2.libanki.Storage
 import com.ichi2.libanki.utils.TimeManager
-import com.ichi2.testutils.*
+import com.ichi2.testutils.AndroidTest
+import com.ichi2.testutils.MockTime
+import com.ichi2.testutils.TaskSchedulerRule
+import com.ichi2.testutils.TestClass
+import com.ichi2.testutils.common.FailOnUnhandledExceptionRule
+import com.ichi2.testutils.common.IgnoreFlakyTestsInCIRule
+import com.ichi2.testutils.filter
 import com.ichi2.utils.InMemorySQLiteOpenHelperFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.test.resetMain
 import net.ankiweb.rsdroid.BackendException
 import net.ankiweb.rsdroid.testing.RustBackendLoader
 import org.hamcrest.Matcher
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.json.JSONException
-import org.junit.*
+import org.junit.After
+import org.junit.Assert
+import org.junit.Assume
+import org.junit.Before
+import org.junit.Rule
+import org.junit.rules.TestName
 import org.robolectric.Robolectric
 import org.robolectric.Shadows
 import org.robolectric.android.controller.ActivityController
+import org.robolectric.junit.rules.TimeoutRule
 import org.robolectric.shadows.ShadowDialog
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowLooper
 import org.robolectric.shadows.ShadowMediaPlayer
 import timber.log.Timber
+import kotlin.test.assertNotNull
 
-open class RobolectricTest : AndroidTest {
-
+open class RobolectricTest :
+    TestClass,
+    AndroidTest {
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private fun Any.wait(timeMs: Long) = (this as Object).wait(timeMs)
 
-    private val mControllersForCleanup = ArrayList<ActivityController<*>>()
+    private val controllersForCleanup = ArrayList<ActivityController<*>>()
 
     protected fun saveControllerForCleanup(controller: ActivityController<*>) {
-        mControllersForCleanup.add(controller)
+        controllersForCleanup.add(controller)
     }
 
-    protected open fun useInMemoryDatabase(): Boolean {
-        return true
-    }
-
-    open val disableCollectionLogFile = true
+    protected open fun useInMemoryDatabase(): Boolean = true
 
     @get:Rule
-    val mTaskScheduler = TaskSchedulerRule()
+    val taskScheduler = TaskSchedulerRule()
 
     /** Allows [com.ichi2.testutils.Flaky] to annotate tests in subclasses */
     @get:Rule
     val ignoreFlakyTests = IgnoreFlakyTestsInCIRule()
 
+    @get:Rule
+    val testName = TestName()
+
+    @get:Rule
+    val failOnUnhandledExceptions = FailOnUnhandledExceptionRule()
+
+    @get:Rule
+    val timeoutRule: TimeoutRule = TimeoutRule.seconds(60)
+
     @Before
     @CallSuper
     open fun setUp() {
+        println("""-- executing test "${testName.methodName}"""")
         TimeManager.resetWith(MockTime(2020, 7, 7, 7, 0, 0, 0, 10))
+        throwOnShowError = true
+
+        // See the Android logging (from Timber)
+        ShadowLog.stream =
+            System.out
+                // Filters for non-Timber sources. Prefer filtering in RobolectricDebugTree if possible
+                // LifecycleMonitor: not needed as we already use registerActivityLifecycleCallbacks for logs
+                // W/ShadowLegacyPath: android.graphics.Path#op() not supported yet.
+                .filter("^(?!(W/ShadowLegacyPath|D/LifecycleMonitor)).*$")
 
         ChangeManager.clearSubscribers()
 
+        validateRunWithAnnotationPresent()
+
+        val config =
+            Configuration
+                .Builder()
+                .setExecutor(SynchronousExecutor())
+                .build()
+
+        WorkManagerTestInitHelper.initializeTestWorkManager(targetContext, config)
+
         // resolved issues with the collection being reused if useInMemoryDatabase is false
-        CollectionHelper.instance.setColForTests(null)
+        CollectionManager.setColForTests(null)
 
         maybeSetupBackend()
-
-        // disable the collection log file for a speed boost & reduce log output
-        CollectionManager.disableLogFile = disableCollectionLogFile
-        // See the Android logging (from Timber)
-        ShadowLog.stream = System.out
-            // Filters for non-Timber sources. Prefer filtering in RobolectricDebugTree if possible
-            // LifecycleMonitor: not needed as we already use registerActivityLifecycleCallbacks for logs
-            .filter("^(?!(W/ShadowLegacyPath|D/LifecycleMonitor)).*$") // W/ShadowLegacyPath: android.graphics.Path#op() not supported yet.
 
         Storage.setUseInMemory(useInMemoryDatabase())
 
@@ -118,9 +150,7 @@ open class RobolectricTest : AndroidTest {
         MetaDB.closeDB()
     }
 
-    protected open fun useLegacyHelper(): Boolean {
-        return false
-    }
+    protected open fun useLegacyHelper(): Boolean = false
 
     protected fun getHelperFactory(): SupportSQLiteOpenHelper.Factory =
         if (useInMemoryDatabase()) {
@@ -133,8 +163,9 @@ open class RobolectricTest : AndroidTest {
     @After
     @CallSuper
     open fun tearDown() {
+        throwOnShowError = false
         // If you don't clean up your ActivityControllers you will get OOM errors
-        for (controller in mControllersForCleanup) {
+        for (controller in controllersForCleanup) {
             Timber.d("Calling destroy on controller %s", controller.get().toString())
             try {
                 controller.destroy()
@@ -143,14 +174,15 @@ open class RobolectricTest : AndroidTest {
                 // No exception here should halt test execution since tests are over anyway.
             }
         }
-        mControllersForCleanup.clear()
+        controllersForCleanup.clear()
 
         try {
-            if (CollectionHelper.instance.colIsOpenUnsafe()) {
-                CollectionHelper.instance.getColUnsafe(targetContext)!!.debugEnsureNoOpenPointers()
+            if (CollectionManager.isOpenUnsafe()) {
+                CollectionManager.getColUnsafe().debugEnsureNoOpenPointers()
             }
             // If you don't tear down the database you'll get unexpected IllegalStateExceptions related to connections
-            CollectionHelper.instance.closeCollection("RobolectricTest: End")
+            Timber.i("closeCollection: %s", "RobolectricTest: End")
+            CollectionManager.closeCollectionBlocking()
         } catch (ex: BackendException) {
             if ("CollectionNotOpen" == ex.message) {
                 Timber.w(ex, "Collection was already disposed - may have been a problem")
@@ -167,23 +199,20 @@ open class RobolectricTest : AndroidTest {
 
             TimeManager.reset()
         }
+        WorkManagerTestInitHelper.closeWorkDatabase()
         Dispatchers.resetMain()
         runBlocking { CollectionManager.discardBackend() }
-    }
-
-    protected fun clickMaterialDialogButton(button: WhichButton, @Suppress("SameParameterValue") checkDismissed: Boolean) {
-        val dialog = ShadowDialog.getLatestDialog() as MaterialDialog
-        dialog.getActionButton(button).performClick()
-        if (checkDismissed) {
-            Assert.assertTrue("Dialog not dismissed?", Shadows.shadowOf(dialog).hasBeenDismissed())
-        }
+        println("""-- completed test "${testName.methodName}"""")
     }
 
     /**
      * Click on a dialog button for an AlertDialog dialog box. Replaces the above helper.
      */
-    protected fun clickAlertDialogButton(button: Int, @Suppress("SameParameterValue") checkDismissed: Boolean) {
-        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+    protected fun clickAlertDialogButton(
+        button: Int,
+        @Suppress("SameParameterValue") checkDismissed: Boolean,
+    ) {
+        val dialog = getLatestAlertDialog()
 
         dialog.getButton(button).performClick()
         // Need to run UI thread tasks to actually run the onClickHandler
@@ -195,28 +224,16 @@ open class RobolectricTest : AndroidTest {
     }
 
     /**
-     * Get the current dialog text. Will return null if no dialog visible *or* if you check for dismissed and it has been dismissed
-     *
-     * @param checkDismissed true if you want to check for dismissed, will return null even if dialog exists but has been dismissed
-     */
-    protected fun getMaterialDialogText(@Suppress("SameParameterValue") checkDismissed: Boolean): String? {
-        val dialog: MaterialDialog = ShadowDialog.getLatestDialog() as MaterialDialog
-        if (checkDismissed && Shadows.shadowOf(dialog).hasBeenDismissed()) {
-            Timber.e("The latest dialog has already been dismissed.")
-            return null
-        }
-        return dialog.view.contentLayout.findViewById<TextView>(com.afollestad.materialdialogs.R.id.md_text_message).text.toString()
-    }
-
-    /**
      * Get the current dialog text for AlertDialogs (which are replacing MaterialDialogs). Will return null if no dialog visible
      * *or* if you check for dismissed and it has been dismissed
      *
      * @param checkDismissed true if you want to check for dismissed, will return null even if dialog exists but has been dismissed
      * TODO: Rename to getDialogText when all MaterialDialogs are changed to AlertDialogs
      */
-    protected fun getAlertDialogText(@Suppress("SameParameterValue") checkDismissed: Boolean): String? {
-        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+    protected fun getAlertDialogText(
+        @Suppress("SameParameterValue") checkDismissed: Boolean,
+    ): String? {
+        val dialog = getLatestAlertDialog()
         if (checkDismissed && Shadows.shadowOf(dialog).hasBeenDismissed()) {
             Timber.e("The latest dialog has already been dismissed.")
             return null
@@ -272,13 +289,16 @@ open class RobolectricTest : AndroidTest {
         }
 
         /** This can probably be implemented in a better manner  */
-        @JvmStatic // Using protected members which are not @JvmStatic in the superclass companion is unsupported yet
-        protected fun waitForAsyncTasksToComplete() {
+        internal fun waitForAsyncTasksToComplete() {
             advanceRobolectricLooperWithSleep()
         }
 
         @JvmStatic // Using protected members which are not @JvmStatic in the superclass companion is unsupported yet
-        protected fun <T : AnkiActivity?> startActivityNormallyOpenCollectionWithIntent(testClass: RobolectricTest, clazz: Class<T>?, i: Intent?): T {
+        protected fun <T : AnkiActivity?> startActivityNormallyOpenCollectionWithIntent(
+            testClass: RobolectricTest,
+            clazz: Class<T>?,
+            i: Intent?,
+        ): T {
             if (AbstractFlashcardViewer::class.java.isAssignableFrom(clazz!!)) {
                 // fixes 'Don't know what to do with dataSource...' inside Sounds.kt
                 // solution from https://github.com/robolectric/robolectric/issues/4673
@@ -286,8 +306,13 @@ open class RobolectricTest : AndroidTest {
                     ShadowMediaPlayer.MediaInfo(1, 0)
                 }
             }
-            val controller = Robolectric.buildActivity(clazz, i)
-                .create().start().resume().visible()
+            val controller =
+                Robolectric
+                    .buildActivity(clazz, i)
+                    .create()
+                    .start()
+                    .resume()
+                    .visible()
             advanceRobolectricLooperWithSleep()
             testClass.saveControllerForCleanup(controller)
             return controller.get()
@@ -295,43 +320,32 @@ open class RobolectricTest : AndroidTest {
     }
 
     val targetContext: Context
-        get() {
-            return try {
-                ApplicationProvider.getApplicationContext()
-            } catch (e: IllegalStateException) {
-                if (e.message != null && e.message!!.startsWith("No instrumentation registered!")) {
-                    // Explicitly ignore the inner exception - generates line noise
-                    throw IllegalStateException("Annotate class: '${javaClass.simpleName}' with '@RunWith(AndroidJUnit4.class)'")
-                }
-                throw e
-            }
-        }
+        get() = ApplicationProvider.getApplicationContext()
 
     /**
      * Returns an instance of [SharedPreferences] using the test context
      * @see [editPreferences] for editing
      */
-    fun getPreferences(): SharedPreferences {
-        return targetContext.sharedPrefs()
-    }
+    fun getPreferences(): SharedPreferences = targetContext.sharedPrefs()
 
-    protected fun getResourceString(res: Int): String {
-        return targetContext.getString(res)
-    }
+    protected fun getResourceString(res: Int): String = targetContext.getString(res)
 
-    protected fun getQuantityString(res: Int, quantity: Int, vararg formatArgs: Any): String {
-        return targetContext.resources.getQuantityString(res, quantity, *formatArgs)
-    }
+    protected fun getQuantityString(
+        res: Int,
+        quantity: Int,
+        vararg formatArgs: Any,
+    ): String = targetContext.resources.getQuantityString(res, quantity, *formatArgs)
 
     /** A collection. Created one second ago, not near cutoff time.
      * Each time time is checked, it advance by 10 ms. Not enough to create any change visible to user, but ensure
      * we don't get two equal time. */
     override val col: Collection
-        get() = try {
-            CollectionHelper.instance.getColUnsafe(targetContext)!!
-        } catch (e: UnsatisfiedLinkError) {
-            throw RuntimeException("Failed to load collection. Did you call super.setUp()?", e)
-        }
+        get() =
+            try {
+                CollectionManager.getColUnsafe()
+            } catch (e: UnsatisfiedLinkError) {
+                throw RuntimeException("Failed to load collection. Did you call super.setUp()?", e)
+            }
 
     protected val collectionTime: MockTime
         get() = TimeManager.time as MockTime
@@ -339,17 +353,13 @@ open class RobolectricTest : AndroidTest {
     /** Call this method in your test if you to test behavior with a null collection  */
     protected fun enableNullCollection() {
         CollectionManager.closeCollectionBlocking()
-        CollectionHelper.setInstanceForTesting(object : CollectionHelper() {
-            @Synchronized
-            override fun getColUnsafe(context: Context?): Collection? = null
-        })
-        CollectionManager.emulateOpenFailure = true
+        CollectionManager.setColForTests(null)
+        CollectionManager.emulatedOpenFailure = CollectionOpenFailure.LOCKED
     }
 
     /** Restore regular collection behavior  */
     protected fun disableNullCollection() {
-        CollectionHelper.setInstanceForTesting(CollectionHelper())
-        CollectionManager.emulateOpenFailure = false
+        CollectionManager.emulatedOpenFailure = null
     }
 
     @Throws(JSONException::class)
@@ -358,17 +368,15 @@ open class RobolectricTest : AndroidTest {
         return NotetypeJson(collectionModels.byName(modelName).toString().trim { it <= ' ' })
     }
 
-    internal fun <T : AnkiActivity?> startActivityNormallyOpenCollectionWithIntent(clazz: Class<T>?, i: Intent?): T {
-        return startActivityNormallyOpenCollectionWithIntent(this, clazz, i)
-    }
+    internal fun <T : AnkiActivity?> startActivityNormallyOpenCollectionWithIntent(
+        clazz: Class<T>?,
+        i: Intent?,
+    ): T = startActivityNormallyOpenCollectionWithIntent(this, clazz, i)
 
-    internal inline fun <reified T : AnkiActivity?> startRegularActivity(): T {
-        return startRegularActivity(null)
-    }
+    internal inline fun <reified T : AnkiActivity?> startRegularActivity(): T = startRegularActivity(null)
 
-    internal inline fun <reified T : AnkiActivity?> startRegularActivity(i: Intent? = null): T {
-        return startActivityNormallyOpenCollectionWithIntent(T::class.java, i)
-    }
+    internal inline fun <reified T : AnkiActivity?> startRegularActivity(i: Intent? = null): T =
+        startActivityNormallyOpenCollectionWithIntent(T::class.java, i)
 
     /**
      * Call to assume that <code>actual</code> satisfies the condition specified by <code>matcher</code>.
@@ -387,7 +395,10 @@ open class RobolectricTest : AndroidTest {
      * @see org.hamcrest.CoreMatchers
      * @see org.junit.matchers.JUnitMatchers
      */
-    fun <T> assumeThat(actual: T, matcher: Matcher<T>?) {
+    fun <T> assumeThat(
+        actual: T,
+        matcher: Matcher<T>?,
+    ) {
         Assume.assumeThat(actual, matcher)
     }
 
@@ -408,7 +419,11 @@ open class RobolectricTest : AndroidTest {
      * @see org.hamcrest.CoreMatchers
      * @see org.junit.matchers.JUnitMatchers
      */
-    fun <T> assumeThat(message: String?, actual: T, matcher: Matcher<T>?) {
+    fun <T> assumeThat(
+        message: String?,
+        actual: T,
+        matcher: Matcher<T>?,
+    ) {
         Assume.assumeThat(message, actual, matcher)
     }
 
@@ -419,20 +434,18 @@ open class RobolectricTest : AndroidTest {
      * throwing [AssumptionViolatedException]
      * @param message A message to pass to [AssumptionViolatedException]
      */
-    fun assumeTrue(message: String?, b: Boolean) {
+    fun assumeTrue(
+        message: String?,
+        b: Boolean,
+    ) {
         Assume.assumeTrue(message, b)
     }
 
-    fun equalFirstField(expected: Card, obtained: Card) {
+    fun equalFirstField(
+        expected: Card,
+        obtained: Card,
+    ) {
         MatcherAssert.assertThat(obtained.note().fields[0], Matchers.equalTo(expected.note().fields[0]))
-    }
-
-    @CheckResult
-    protected fun openDialogFragmentUsingActivity(menu: DialogFragment): FragmentTestActivity {
-        val startActivityIntent = Intent(targetContext, FragmentTestActivity::class.java)
-        val activity = startActivityNormallyOpenCollectionWithIntent(FragmentTestActivity::class.java, startActivityIntent)
-        activity.showDialogFragment(menu)
-        return activity
     }
 
     /**
@@ -443,8 +456,25 @@ open class RobolectricTest : AndroidTest {
      * ```
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    fun editPreferences(action: SharedPreferences.Editor.() -> Unit) =
-        getPreferences().edit(action = action)
+    fun editPreferences(action: SharedPreferences.Editor.() -> Unit) = getPreferences().edit(action = action)
+
+    protected fun grantRecordAudioPermission() {
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        val app = Shadows.shadowOf(application)
+        app.grantPermissions(Manifest.permission.RECORD_AUDIO)
+    }
+
+    private fun validateRunWithAnnotationPresent() {
+        try {
+            ApplicationProvider.getApplicationContext<Application>()
+        } catch (e: IllegalStateException) {
+            if (e.message != null && e.message!!.startsWith("No instrumentation registered!")) {
+                // Explicitly ignore the inner exception - generates line noise
+                throw IllegalStateException("Annotate class: '${javaClass.simpleName}' with '@RunWith(AndroidJUnit4.class)'")
+            }
+            throw e
+        }
+    }
 
     private fun maybeSetupBackend() {
         try {
@@ -469,10 +499,13 @@ open class RobolectricTest : AndroidTest {
 * Apple Menu - System Preferences - Security & Privacy - General (tab) - Unlock Settings - Select Allow Anyway". 
     Button is underneath the text: "librsdroid.dylib was blocked from use because it is not from an identified developer"
 * Press "OK" on the "Apple cannot check it for malicious software" prompt
-* Test should execute correctly"""
+* Test should execute correctly""",
                 )
             }
             throw e
         }
     }
 }
+
+private fun getLatestAlertDialog(): AlertDialog =
+    assertNotNull(ShadowDialog.getLatestDialog() as? AlertDialog, "A dialog should be displayed")

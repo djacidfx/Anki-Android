@@ -15,47 +15,146 @@
  */
 package com.ichi2.anki.pages
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.annotation.CallSuper
+import androidx.annotation.LayoutRes
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import com.google.android.material.appbar.MaterialToolbar
 import com.ichi2.anki.R
+import com.ichi2.anki.SingleFragmentActivity
 import com.ichi2.themes.Themes
+import com.ichi2.themes.setTransparentStatusBar
 import timber.log.Timber
+import kotlin.reflect.KClass
 
 /**
  * Base class for displaying Anki HTML pages
- *
- * @see [PagesActivity]
  */
-abstract class PageFragment : Fragment() {
-    abstract val title: String
-    abstract val pageName: String
-    abstract var webViewClient: PageWebViewClient
-    abstract var webChromeClient: PageChromeClient
-
+@Suppress("LeakingThis")
+open class PageFragment(
+    @LayoutRes contentLayoutId: Int = R.layout.page_fragment,
+) : Fragment(contentLayoutId),
+    PostRequestHandler {
     lateinit var webView: WebView
+    private val server = AnkiServer(this).also { it.start() }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.page_fragment, container, false)
+    /**
+     * Override this to set a custom [WebViewClient] to the page.
+     * This is called in [onViewCreated].
+     *
+     * @param savedInstanceState If non-null, this fragment is being re-constructed
+     * from a previous saved state as given here.
+     */
+    protected open fun onCreateWebViewClient(savedInstanceState: Bundle?) = PageWebViewClient()
 
-        webView = view.findViewById<WebView>(R.id.pagesWebview).apply {
-            settings.javaScriptEnabled = true
-            webViewClient = this@PageFragment.webViewClient
-            webChromeClient = this@PageFragment.webChromeClient
+    protected open fun onWebViewCreated(webView: WebView) { }
+
+    /**
+     * When the webview calls `BridgeCommand("foo")`, the PageFragment execute `bridgeCommands["foo"]`.
+     * By default, only bridge command is allowed, subclasses must redefine it if they expect bridge commands.
+     */
+    open val bridgeCommands: Map<String, () -> Unit> = mapOf()
+
+    /**
+     * Ensures that [pageWebViewClient] can receive `bridgeCommand` requests and execute the command from [bridgeCommands].
+     */
+    private fun setupBridgeCommand(pageWebViewClient: PageWebViewClient) {
+        if (bridgeCommands.isEmpty()) {
+            return
         }
+        webView.addJavascriptInterface(
+            object : Object() {
+                @JavascriptInterface
+                fun bridgeCommandImpl(request: String) {
+                    bridgeCommands.orEmpty().getOrDefault(request) {
+                        Timber.d("Unknown request received %s", request)
+                    }()
+                }
+            },
+            "bridgeCommandInterface",
+        )
+        pageWebViewClient.onPageFinishedCallbacks.add { webView ->
+            webView.evaluateJavascript(
+                "bridgeCommand = function(request){ bridgeCommandInterface.bridgeCommandImpl(request); };",
+            ) {}
+        }
+    }
+
+    @CallSuper
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        val pageWebViewClient = onCreateWebViewClient(savedInstanceState)
+        webView =
+            view.findViewById<WebView>(R.id.webview).apply {
+                with(settings) {
+                    javaScriptEnabled = true
+                    displayZoomControls = false
+                    builtInZoomControls = true
+                    setSupportZoom(true)
+                }
+                webViewClient = pageWebViewClient
+                webChromeClient = PageChromeClient()
+            }
+        setupBridgeCommand(pageWebViewClient)
+        onWebViewCreated(webView)
+
+        requireActivity().setTransparentStatusBar()
+        val arguments = requireArguments()
+        val path = requireNotNull(arguments.getString(PATH_ARG_KEY)) { "'$PATH_ARG_KEY' missing" }
+        val title = arguments.getString(TITLE_ARG_KEY)
+
         val nightMode = if (Themes.currentTheme.isNightMode) "#night" else ""
-        val url = (requireActivity() as PagesActivity).baseUrl() + "$pageName.html$nightMode"
-
+        val url = Uri.parse("${server.baseUrl()}$path$nightMode")
         Timber.i("Loading $url")
-        webView.loadUrl(url)
+        webView.loadUrl(url.toString())
 
-        return view
+        view.findViewById<MaterialToolbar>(R.id.toolbar).apply {
+            if (title != null) {
+                setTitle(title)
+            }
+            setNavigationOnClickListener {
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+            }
+        }
+    }
+
+    override suspend fun handlePostRequest(
+        uri: String,
+        bytes: ByteArray,
+    ): ByteArray {
+        val methodName =
+            if (uri.startsWith(AnkiServer.ANKI_PREFIX)) {
+                uri.substring(AnkiServer.ANKI_PREFIX.length)
+            } else {
+                throw IllegalArgumentException("unhandled request: $uri")
+            }
+        return activity.handleUiPostRequest(methodName, bytes)
+            ?: handleCollectionPostRequest(methodName, bytes)
+            ?: throw IllegalArgumentException("unhandled method: $methodName")
+    }
+
+    companion object {
+        const val PATH_ARG_KEY = "path"
+        const val TITLE_ARG_KEY = "title"
+
+        fun getIntent(
+            context: Context,
+            path: String,
+            title: String? = null,
+            clazz: KClass<out PageFragment> = PageFragment::class,
+        ): Intent {
+            val arguments = bundleOf(PATH_ARG_KEY to path, TITLE_ARG_KEY to title)
+            return SingleFragmentActivity.getIntent(context, clazz, arguments)
+        }
     }
 }
