@@ -29,7 +29,6 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ConfigTest : JvmTest() {
-
     @Test
     fun string_serialization() {
         assertThat(col.config.get<String>("sortType"), equalTo("noteFld"))
@@ -47,7 +46,7 @@ class ConfigTest : JvmTest() {
         assertThat(col.config.get("int"), equalTo(5))
         // explicitly nulled key should work
         col.config.set("null", JSONObject.NULL)
-        var b: Int? = null
+        val b: Int? = null
         assertThat(col.config.get("null"), equalTo(b))
         // missing key should be the same
         assertThat(col.config.get("missing"), equalTo(b))
@@ -85,4 +84,7 @@ class ConfigTest : JvmTest() {
 }
 
 @Serializable
-data class Example(val hello: String, val world: Int)
+data class Example(
+    val hello: String,
+    val world: Int,
+)

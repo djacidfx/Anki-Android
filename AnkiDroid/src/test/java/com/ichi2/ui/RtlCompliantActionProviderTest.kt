@@ -28,29 +28,31 @@ class RtlCompliantActionProviderTest {
     @Test
     fun test_unwrapContext_will_get_activity() {
         val a = Activity()
-        val c: Context = ContextWrapper(
-            ContextThemeWrapper(
-                ContextWrapper(
-                    a
+        val c: Context =
+            ContextWrapper(
+                ContextThemeWrapper(
+                    ContextWrapper(
+                        a,
+                    ),
+                    0,
                 ),
-                0
             )
-        )
         val provider = RtlCompliantActionProvider(c)
-        assertEquals(provider.mActivity, a)
+        assertEquals(provider.activity, a)
     }
 
     @Test
     fun test_unwrapContext_will_throw_on_no_activity() {
         val a = Application()
-        val c: Context = ContextWrapper(
-            ContextThemeWrapper(
-                ContextWrapper(
-                    a
+        val c: Context =
+            ContextWrapper(
+                ContextThemeWrapper(
+                    ContextWrapper(
+                        a,
+                    ),
+                    0,
                 ),
-                0
             )
-        )
         assertThrows<ClassCastException> { RtlCompliantActionProvider(c) }
     }
 }

@@ -46,15 +46,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="check_db_title">Перевірити базу даних?</string>
     <string name="check_db_warning">Це може зайняти багато часу</string>
-    <string name="contextmenu_deckpicker_delete_deck">Видалити колоду</string>
+    <string name="contextmenu_deckpicker_delete_deck" maxLength="28">Видалити колоду</string>
     <string name="delete_deck_title">Видалити колоду?</string>
+    <plurals name="delete_deck_message">
+        <item quantity="one">Видалити всі картки в %1$s? Вона містить %2$d картку</item>
+        <item quantity="few">Видалити всі картки в %1$s? Вона містить %2$d картки</item>
+        <item quantity="many">Видалити всі картки в %1$s? Вона містить %2$d карток</item>
+        <item quantity="other">Видалити всі картки в %1$s? Вона містить %2$d карток</item>
+    </plurals>
+    <string name="delete_cram_deck_message">Видалити фільтровану колоду %s і повернути всі картки до оригінальних колод?</string>
     <string name="no_tts_available_message">Відсутня мова для перетворення тексту в мовлення</string>
-    <string name="initializing_tts">Запуск синтезу мовлення&#8230;</string>
     <string name="tts_no_tts">Не говорити</string>
     <string name="unused_strings">\n\nНевикористані файли:\n</string>
-    <string name="preview_title" comment="Title of the window allowing to preview card(s)">Попередній перегляд</string>
     <string name="reposition_card_dialog_title">Перемістити нову картку</string>
-    <string name="reposition_card_dialog_message">Початкова позиція:</string>
     <string name="reposition_card_not_new_error">Можна перемістити тільки нові картки</string>
     <plurals name="reposition_card_dialog_acknowledge">
         <item quantity="one">%d картку переміщено</item>
@@ -63,36 +67,12 @@
         <item quantity="other">%d карток переміщено</item>
     </plurals>
     <string name="reset_card_dialog_title">Скинути прогрес картки</string>
-    <string name="reset_card_dialog_message">Ця картка буде переміщена у кінець черги нових карток</string>
     <plurals name="reset_cards_dialog_acknowledge">
         <item quantity="one">%d картку скинуто</item>
         <item quantity="few">%d картки скинуті</item>
         <item quantity="many">%d картки скинуті</item>
         <item quantity="other">%d картки скинуті</item>
     </plurals>
-    <!-- Reschedule Card Dialog -->
-    <plurals name="reschedule_cards_dialog_title_new">
-        <item quantity="one">Перепланувати %d картку</item>
-        <item quantity="few">Перепланувати %d картки</item>
-        <item quantity="many">Перепланувати %d карток</item>
-        <item quantity="other">Перепланувати %d карток</item>
-    </plurals>
-    <plurals name="reschedule_card_dialog_interval">
-        <item quantity="one">Поточний інтервал: %d доба</item>
-        <item quantity="few">Поточний інтервал: %d доби</item>
-        <item quantity="many">Поточний інтервал: %d діб</item>
-        <item quantity="other">Поточний інтервал: %d доби</item>
-    </plurals>
-    <string name="reschedule_card_dialog_message">Запланувати повторення через x днів:</string>
-    <plurals name="reschedule_cards_dialog_acknowledge">
-        <item quantity="one">%d картку переплановано</item>
-        <item quantity="few">%d карток переплановано</item>
-        <item quantity="many">%d карток переплановано</item>
-        <item quantity="other">%d картки переплановано</item>
-    </plurals>
-    <string name="reschedule_card_dialog_new_card_warning">Переплановується нова картка. Перепланування перетворює нові картки на повторені. Скористайтеся опцією «перемістити картку», щоб змінити місце картки в новій черзі</string>
-    <string name="reschedule_card_dialog_warning_ease_reset">Планування також скидає, як планувальник відноситься до карти в майбутньому (легкість картки буде встановлено на %d%%)</string>
-    <string name="firefox_workaround_launched_reviewer_opening_deck">Виберіть колоду в вашому файловому менеджері або перейдіть на сторінку about:downloads (про:завантаження), аби її імпортувати</string>
     <string name="answering_error_title">Помилка бази даних</string>
     <string name="answering_error_message">Під час запису в колекцію сталася помилка. Причиною може бути пошкоджена база даних або відсутність місця на диску.\n\nЯкщо це трапляється частіше, будь ласка, спробуйте перевірити базу даних, полагодити колекцію, або відновити її з резервної копії. Для цього натисніть на «налаштування».\n\nОднак, це також може бути недолік AnkiDroid; будь ласка, надішліть звіт для перевірки цього.</string>
     <string name="answering_error_report">Повідомити про помилку</string>
@@ -100,15 +80,11 @@
     <string name="repair_deck_dialog">Ви дійсно бажаєте спробувати відновити базу даних?\n\nПеред початком спроби в підкаталозі \'%s\' буде створена копія.</string>
     <string name="intent_aedict_empty">Категорія  \"стандартна\"  порожня</string>
     <string name="intent_aedict_category">Щоб додати картки до AnkiDroid, видаліть всі категорії Notepad або додайте категорію \'default\'</string>
-    <string name="custom_study_new_total_new">Нові картки в колоді: %d</string>
-    <string name="custom_study_rev_total_rev">Карток до повторення: %d</string>
     <string name="custom_study_new_extend">Збільшення/зменшення («-3») сьогоднішньої межі на нові картки</string>
     <string name="custom_study_rev_extend">Збільшення/зменшення («-3») сьогоднішнього ліміту на повторення</string>
     <string name="custom_study_forgotten">Повторити картки забуті за останні x днів:</string>
     <string name="custom_study_ahead">Повторити наперед за х днів:</string>
-    <string name="custom_study_random">Вибрати х випадкових карт з колоди:</string>
     <string name="custom_study_preview">Переглянути нові картки додані за останні x днів:</string>
-    <string name="custom_study_rebuild_deck_corrupt">Не вдалося перебудувати колоду додаткового навчання</string>
     <string name="storage_full_title">Сховище заповнено</string>
     <string name="storage_almost_full_title">Сховище майже заповнено</string>
     <string name="no_space_to_downgrade_title" tools:ignore="UnusedResources">Пам\'ять заповнена</string>
@@ -121,16 +97,21 @@
     <string name="dialog_confirm" tools:ignore="UnusedResources">Підтвердити</string>
     <string name="dialog_no">Ні</string>
     <string name="dialog_yes">Так</string>
+    <string name="dialog_keep">Залишити</string>
+    <string name="dialog_remove">Видалити</string>
     <string name="dialog_continue">Продовжити</string>
     <string name="dialog_processing">Обробка&#8230;</string>
     <string name="dialog_positive_create" comment="Create a new collection, probably erasing the previous one, may be necessary in case of error.">Створити</string>
-    <string name="dialog_positive_delete">Видалити</string>
+    <string name="dialog_positive_delete" maxLength="28">Видалити</string>
     <!-- Currently unsued, should be useful in the future -->
     <string name="dialog_positive_disable" tools:ignore="UnusedResources">Вимкнути</string>
     <string name="dialog_positive_overwrite">Перезаписати</string>
     <string name="dialog_positive_repair">Виправити</string>
     <string name="dialog_positive_replace">Замінити</string>
     <string name="dialog_collection_path_not_dir">Вказаний шлях не є дійсним</string>
+    <string name="dialog_invalid_custom_certificate">Наданий текст не перетворюється на дійсний сертифікат X509 з PEM-кодуванням</string>
+    <string name="dialog_invalid_custom_certificate_title">Помилка парсингу сертифікату</string>
+    <string name="dialog_updated_custom_certificate">Сертифікат оновлено</string>
     <!-- Media checking -->
     <string name="check_media_title">Перевірити медіафайли?</string>
     <string name="check_media_warning">Процес може зайняти багато часу з великими колекціями медіафайлів</string>
@@ -157,14 +138,11 @@
     <!-- Empty cards -->
     <string name="emtpy_cards_finding">Пошук порожніх карток&#8230;</string>
     <string name="empty_cards_count">Картки до видалення: %d</string>
-    <string name="empty_cards_deleted">Карток видалено: %d</string>
     <!-- Multimedia - Edit Field Activity -->
     <string name="multimedia_editor_audio_permission_refused">Не вдалося отримати дозвіл на використання мікрофона.</string>
-    <string name="multimedia_editor_camera_permission_refused">Не вдалося отримати дозвіл на використанння камери. Функція вимкнена.</string>
     <string name="multimedia_editor_failed">Не вдалося відкрити мультимедійний редактор</string>
     <!-- Multimedia - Audio View -->
     <string name="multimedia_editor_audio_permission_denied">Відхилено доступ до запису звуку</string>
-    <string name="mutimedia_editor_assertion_failed">Невідома помилка під час відображення розширеного редактора</string>
     <!-- Database Integrity Check -->
     <string name="integrity_check_startup_title">AnkiDroid оновлено</string>
     <string name="integrity_check_startup_content">AnkiDroid оновлено. Оновлення включає в себе виправлення можливих проблем з базою даних, і ми радимо Вам запустити перевірку бази даних.</string>
@@ -189,16 +167,15 @@
     <string name="failed_to_apply_background_image">Не вдалося застосувати фонове зображення %s</string>
     <string name="background_image_too_large">Фонове зображення занадто велике</string>
     <string name="image_max_size_allowed">Максимально допустимий розмір зображення %d МБ</string>
+    <string name="image_dimensions_too_large">Розміри зображення занадто великі (%1$d × %2$d)</string>
     <!-- Global Intent handler -->
     <!-- Also used by Card Browser, not renaming to save translators effort -->
     <string name="intent_handler_failed_no_storage_permission">Немає доступу до сховища. Надайте дозвіл на доступ до сховища і спробуйте знову.</string>
-    <!-- Browser Appearance -->
-    <string name="card_template_editor_card_browser_appearance_failed">Не вдалося завантажити зовнішній вигляд переглядача карток</string>
     <!-- Boot Service -->
     <string name="boot_service_failed_to_schedule_notifications">Не вдалося запланувати нагадування</string>
     <string name="boot_service_too_many_notifications">Забагато нагадувань заплановано. Деякі з них не з’являться</string>
     <!-- Locale Selection Dialog -->
-    <string name="locale_selection_dialog_title">Вибір підказок клавіатури</string>
+    <string name="locale_selection_dialog_title_new">Вибрати мову</string>
     <string name="locale_selection_dialog_summary">Деякі багатомовні клавіатури, такі як GBoard, підтримують зміну мови під час редагування тексту\n\nБудь ласка, попросіть функцію \"setImeHintLocals\" від виробника клавіатури, якщо ваша клавіатура не змінює мову.</string>
     <!-- Help Dialog -->
     <string name="help_title_using_ankidroid">Використання AnkiDroid</string>
@@ -209,7 +186,7 @@
     <string name="help_item_mailing_list">Список адресатів</string>
     <string name="help_item_reddit">Reddit</string>
     <string name="help_item_report_bug">Повідомити про помилку</string>
-    <string name="help_title_support_ankidroid">Підтримати AnkiDroid</string>
+    <string name="help_title_support_ankidroid" maxLength="28">Підтримати AnkiDroid</string>
     <string name="help_item_support_opencollective_donate">Пожертвувати</string>
     <string name="help_item_support_develop_ankidroid">Розробка</string>
     <string name="help_item_support_rate_ankidroid">Оцінити</string>
@@ -226,6 +203,7 @@
     <string name="help_item_ankiweb_terms_and_conditions">Умови використання AnkiWeb</string>
     <string name="help_title_send_exception">Надіслати звіт про несправності</string>
     <string name="help_dialog_exception_report_debounce">Звіт вже надіслано</string>
+    <string name="help_dialog_exception_report_sent">Звіт надіслано!</string>
     <!--Sync-->
     <plurals name="sync_automatic_sync_needs_more_time">
         <item quantity="one">Автоматична синхронізація може запуститися через %d секунду.</item>
@@ -233,7 +211,7 @@
         <item quantity="many">Автоматична синхронізація може запуститися через %d секунд.</item>
         <item quantity="other">Автоматична синхронізація може запуститися через %d секунди.</item>
     </plurals>
-    <string name="metered_sync_warning">Ваше з\'єднання вимірюється. За передачу даних можуть зніматися кошти</string>
+    <string name="metered_sync_data_warning">Ваш інтернет-провайдер може стягувати гроші за використання даних</string>
     <string name="deck_picker_new">Кількість нових карт, що будуть бачити сьогодні в цій колоді.</string>
     <string name="deck_picker_rev">Кількість нових карток на сьогодні в цій колоді</string>
     <string name="deck_picker_lrn">Кількість карток для повторення на сьогодні в цій колоді</string>
@@ -249,7 +227,7 @@
     <!-- scoped storage -->
     <string name="backup_your_collection">Резервне копіювання колекції</string>
     <string name="backup_collection_message">Ви давно не зберігали резервну копію своєї колекції. Зробіть це зараз, аби запобігти втраті даних</string>
-    <string name="button_backup">Резервна копія</string>
+    <string name="button_backup" maxLength="41">Резервна копія</string>
     <string name="button_disable_reminder">Вимкнути нагадування</string>
     <string name="button_backup_later" comment="dismiss the \'Backup\' dialog for around 2 weeks">Пізніше</string>
     <string name="button_do_not_show_again" comment="permanently dismisses a dialog">Більше не показувати</string>
@@ -258,4 +236,47 @@
     </string>
     <string name="dismiss_backup_warning_upgrade">        У зв\'язку зі зміною політики конфіденційності Android, ваші дані та автоматизовані резервні копії стануть недоступними, якщо додаток буде видалено
     </string>
+    <string name="deck_already_exists">Колода вже існує</string>
+    <string name="empty_deck_name">Назва колоди не може бути порожньою</string>
+    <string name="create_deck_numeric_hint">Якщо у вас є проблеми з порядком колод (наприклад, \'10\' стоїть перед \'2\') - замініть \'2\' на \'02\'</string>
+    <!-- Set Due Date -->
+    <string name="set_due_date_match_interval" comment="when setting a card\'s due date, this checkbox also changes the interval of the card">Встановити інтервал на те саме значення</string>
+    <plurals name="set_due_date_single_day_label" comment="a date control is provided afterwards">
+        <item quantity="one">Показати картку через</item>
+        <item quantity="few">Показати картки через</item>
+        <item quantity="many">Показати картки через</item>
+        <item quantity="other">Показати картки через</item>
+    </plurals>
+    <plurals name="set_due_date_range_label" comment="a date control is provided afterwards">
+        <item quantity="one">Показати картку в діапазоні</item>
+        <item quantity="few">Показати картки в діапазоні</item>
+        <item quantity="many">Показати картки в діапазоні</item>
+        <item quantity="other">Показати картки в діапазоні</item>
+    </plurals>
+    <plurals name="set_due_date_label_suffix" comment="a suffix on a text field allowing a user to enter a number of days">
+        <item quantity="one">день</item>
+        <item quantity="few">дні</item>
+        <item quantity="many">днів</item>
+        <item quantity="other">днів</item>
+    </plurals>
+    <string name="range_delimiter" comment="Placed between two input boxes to denote a range">–</string>
+    <string name="set_due_date_range_start" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'minimum\' value of this range (inclusive)">Від</string>
+    <string name="set_due_date_range_end" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'maximum\' value of this range (inclusive)">До</string>
+    <!-- Instant Note Editor -->
+    <string name="cloze_note_required">Необхідний запис типу Cloze</string>
+    <string name="cloze_not_found_message">Не знайдено жодного запису з пропусками (Cloze), відкрийте Редактор записів або спробуйте знову після додання запису з пропусками.</string>
+    <string name="open">Відкрити</string>
+    <string name="change_cloze_number">Змінити номер Cloze</string>
+    <string name="cloze_number">Номер Cloze:</string>
+    <string name="change_editor_mode">Змінити режим редактора</string>
+    <string name="open_note_editor">Відкрити редактор записів</string>
+    <string name="change_cloze_mode">Змінити режим Cloze</string>
+    <!-- Outdated WebView dialog -->
+    <string name="webview_update_message">Системний WebView застарілий. Деякі функції не будуть правильно працювати. Оновіть його, будь ласка.\n\nВстановлена версія: %1$d\nЯк мінімум потрібна версія: %2$d</string>
+    <string name="compress">Стиснути</string>
+    <!-- Tts playback error dialog -->
+    <string name="tts_error_dialog_title">Мова не підтримується</string>
+    <string name="tts_error_dialog_reason_text">Рушій перетворення тексту в мовлення <b>%1$s</b> не підтримує наступну мову: <b>%2$s</b></string>
+    <string name="tts_error_dialog_change_button_text">Змінити рушій</string>
+    <string name="tts_error_dialog_supported_voices_button_text">Параметри голосу</string>
 </resources>

@@ -67,41 +67,19 @@ enum class AnswerButtons {
      *
      * In Review mode, easy adds additional bonuses to the interval and increases the ease by 15%
      */
-    EASY;
+    EASY,
 
-    fun toViewerCommand(numberOfButtons: Int): ViewerCommand {
-        return when (numberOfButtons) {
-            2 -> {
-                when (this) {
-                    AGAIN -> ViewerCommand.FLIP_OR_ANSWER_EASE1
-                    GOOD -> ViewerCommand.FLIP_OR_ANSWER_EASE2
-                    else -> throw IllegalStateException("$numberOfButtons buttons with answer $this")
-                }
-            }
-            3 -> {
-                when (this) {
-                    AGAIN -> ViewerCommand.FLIP_OR_ANSWER_EASE1
-                    GOOD -> ViewerCommand.FLIP_OR_ANSWER_EASE2
-                    EASY -> ViewerCommand.FLIP_OR_ANSWER_EASE3
-                    else -> throw IllegalStateException("$numberOfButtons buttons with answer $this")
-                }
-            }
-            4 -> {
-                when (this) {
-                    AGAIN -> ViewerCommand.FLIP_OR_ANSWER_EASE1
-                    HARD -> ViewerCommand.FLIP_OR_ANSWER_EASE2
-                    GOOD -> ViewerCommand.FLIP_OR_ANSWER_EASE3
-                    EASY -> ViewerCommand.FLIP_OR_ANSWER_EASE4
-                }
-            }
-            else -> throw IllegalStateException("unexpected button count: $numberOfButtons. answer: $this")
+    ;
+
+    fun toViewerCommand(): ViewerCommand =
+        when (this) {
+            AGAIN -> ViewerCommand.FLIP_OR_ANSWER_EASE1
+            HARD -> ViewerCommand.FLIP_OR_ANSWER_EASE2
+            GOOD -> ViewerCommand.FLIP_OR_ANSWER_EASE3
+            EASY -> ViewerCommand.FLIP_OR_ANSWER_EASE4
         }
-    }
 
     companion object {
-        fun canAnswerHard(numberOfButtons: Int): Boolean = numberOfButtons == 4
-        fun canAnswerEasy(numberOfButtons: Int): Boolean = numberOfButtons >= 3
-
         fun getBackgroundColors(ctx: AnkiActivity): IntArray {
             val backgroundIds: IntArray =
                 if (ctx.animationEnabled()) {
@@ -109,29 +87,28 @@ enum class AnswerButtons {
                         R.attr.againButtonRippleRef,
                         R.attr.hardButtonRippleRef,
                         R.attr.goodButtonRippleRef,
-                        R.attr.easyButtonRippleRef
+                        R.attr.easyButtonRippleRef,
                     )
                 } else {
                     intArrayOf(
                         R.attr.againButtonRef,
                         R.attr.hardButtonRef,
                         R.attr.goodButtonRef,
-                        R.attr.easyButtonRef
+                        R.attr.easyButtonRef,
                     )
                 }
             return Themes.getResFromAttr(ctx, backgroundIds)
         }
 
-        fun getTextColors(ctx: Context): IntArray {
-            return Themes.getColorFromAttr(
+        fun getTextColors(ctx: Context): IntArray =
+            Themes.getColorsFromAttrs(
                 ctx,
                 intArrayOf(
                     R.attr.againButtonTextColor,
                     R.attr.hardButtonTextColor,
                     R.attr.goodButtonTextColor,
-                    R.attr.easyButtonTextColor
-                )
+                    R.attr.easyButtonTextColor,
+                ),
             )
-        }
     }
 }

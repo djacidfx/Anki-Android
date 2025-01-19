@@ -19,7 +19,7 @@ package com.ichi2.anki.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.ichi2.anki.CollectionHelper
+import com.ichi2.anki.CollectionManager
 import timber.log.Timber
 
 /**
@@ -28,15 +28,18 @@ import timber.log.Timber
  * another broadcast intent will be sent to let the activities know about it
  */
 class SdCardReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intent.ACTION_MEDIA_EJECT) {
             Timber.i("media eject detected - closing collection and sending broadcast")
             val i = Intent()
             i.action = MEDIA_EJECT
             context.sendBroadcast(i)
             try {
-                val col = CollectionHelper.instance.getColUnsafe(context)
-                col?.close()
+                val col = CollectionManager.getColUnsafe()
+                col.close()
             } catch (e: Exception) {
                 Timber.w(e, "Exception while trying to close collection likely because it was already unmounted")
             }

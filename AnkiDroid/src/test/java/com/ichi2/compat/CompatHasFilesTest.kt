@@ -17,7 +17,9 @@
 package com.ichi2.compat
 
 import android.os.Build
-import com.ichi2.testutils.*
+import com.ichi2.testutils.createTransientDirectory
+import com.ichi2.testutils.createTransientFile
+import com.ichi2.testutils.withTempFile
 import org.hamcrest.CoreMatchers
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
@@ -30,7 +32,6 @@ import kotlin.test.assertFailsWith
 
 /** Tests for [Compat.hasFiles] */
 class CompatHasFilesTest : Test21And26() {
-
     @Test
     fun has_files_with_file() {
         val dir = createTransientDirectory().withTempFile("aa.txt")
@@ -57,7 +58,11 @@ class CompatHasFilesTest : Test21And26() {
 
         val exception = assertFailsWith<IOException> { hasFiles(file) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            assertThat("Starting at API 26, this should be a NotDirectoryException", exception, CoreMatchers.instanceOf(NotDirectoryException::class.java))
+            assertThat(
+                "Starting at API 26, this should be a NotDirectoryException",
+                exception,
+                CoreMatchers.instanceOf(NotDirectoryException::class.java),
+            )
         }
     }
 

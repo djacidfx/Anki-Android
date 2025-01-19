@@ -26,16 +26,14 @@ import java.util.regex.Pattern
 /**
  * Implementation of Audio field types
  */
-abstract class AudioField : FieldBase(), IField {
-    private var mAudioPath: String? = null
-
-    override var imagePath: String? = null
-
-    override var audioPath: String?
-        get() = mAudioPath
+abstract class AudioField :
+    FieldBase(),
+    IField {
+    override var mediaPath: String? = null
+        get() = field
         set(value) {
-            mAudioPath = value
-            setThisModified()
+            field = value
+            thisModified = true
         }
 
     override var text: String? = null
@@ -43,12 +41,16 @@ abstract class AudioField : FieldBase(), IField {
     override var hasTemporaryMedia: Boolean = false
 
     override val formattedValue: String
-        get() = audioPath?.let { path ->
-            val file = File(path)
-            if (file.exists()) "[sound:${file.name}]" else ""
-        } ?: ""
+        get() =
+            mediaPath?.let { path ->
+                val file = File(path)
+                if (file.exists()) "[sound:${file.name}]" else ""
+            } ?: ""
 
-    override fun setFormattedString(col: Collection, value: String) {
+    override fun setFormattedString(
+        col: Collection,
+        value: String,
+    ) {
         val p = Pattern.compile(PATH_REGEX)
         val m = p.matcher(value)
         var res = ""
@@ -56,7 +58,7 @@ abstract class AudioField : FieldBase(), IField {
             res = m.group(1)!!
         }
         val mediaDir = col.media.dir + "/"
-        audioPath = mediaDir + res
+        mediaPath = mediaDir + res
     }
 
     companion object {

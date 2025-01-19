@@ -17,9 +17,10 @@
 package com.ichi2.anki
 
 import com.ichi2.anki.CollectionManager.withCol
-import com.ichi2.libanki.awaitBackupCompletion
 import com.ichi2.libanki.createBackup
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 fun DeckPicker.performBackupInBackground() {
     launchCatchingTask {
@@ -37,7 +38,7 @@ fun <Activity> Activity.importColpkg(colpkgPath: String) where Activity : AnkiAc
                 if (progress.hasImporting()) {
                     text = progress.importing
                 }
-            }
+            },
         ) {
             CollectionManager.importColpkg(colpkgPath)
         }
@@ -52,7 +53,7 @@ private suspend fun createBackup(force: Boolean) {
         createBackup(
             BackupManager.getBackupDirectoryFromCollection(this.path),
             force,
-            waitForCompletion = false
+            waitForCompletion = false,
         )
     }
     // move this outside 'withCol' to avoid blocking

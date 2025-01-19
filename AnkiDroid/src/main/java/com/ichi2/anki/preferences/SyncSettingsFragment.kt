@@ -18,11 +18,14 @@ package com.ichi2.anki.preferences
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.Preference
 import com.google.android.material.snackbar.Snackbar
+import com.ichi2.anki.CollectionManager.TR
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.R
 import com.ichi2.anki.customSyncBase
 import com.ichi2.anki.launchCatchingTask
+import com.ichi2.anki.settings.Prefs
 import com.ichi2.anki.snackbar.showSnackbar
+import com.ichi2.anki.utils.ext.ifNullOrEmpty
 import com.ichi2.utils.show
 
 /**
@@ -38,23 +41,26 @@ class SyncSettingsFragment : SettingsFragment() {
         // AnkiWeb Account
         updateSyncAccountSummary()
 
-        // Enable/disable force full sync if the user is logged in or not
-        updateForceFullSyncEnabledState()
+        // Enable/disable one-way sync if the user is logged in
+        updateOneWaySyncEnabledState()
 
-        // Configure force full sync option
-        requirePreference<Preference>(R.string.force_full_sync_key).setOnPreferenceClickListener {
-            AlertDialog.Builder(requireContext()).show {
-                setTitle(R.string.force_full_sync_title)
-                setMessage(R.string.force_full_sync_summary)
-                setPositiveButton(R.string.dialog_ok) { _, _ ->
-                    launchCatchingTask {
-                        withCol { modSchemaNoCheck() }
-                        showSnackbar(R.string.force_full_sync_confirmation, Snackbar.LENGTH_SHORT)
+        // Configure one-way sync option
+        requirePreference<Preference>(R.string.one_way_sync_key).apply {
+            setSummary(TR.preferencesOnNextSyncForceChangesIn())
+            setOnPreferenceClickListener {
+                AlertDialog.Builder(requireContext()).show {
+                    setTitle(R.string.one_way_sync_title)
+                    setMessage(TR.preferencesOnNextSyncForceChangesIn())
+                    setPositiveButton(R.string.dialog_ok) { _, _ ->
+                        launchCatchingTask {
+                            withCol { modSchemaNoCheck() }
+                            showSnackbar(R.string.one_way_sync_confirmation, Snackbar.LENGTH_SHORT)
+                        }
                     }
+                    setNegativeButton(R.string.dialog_cancel) { _, _ -> }
                 }
-                setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                false
             }
-            false
         }
         // Custom sync server
         requirePreference<Preference>(R.string.custom_sync_server_key).setSummaryProvider {
@@ -67,20 +73,20 @@ class SyncSettingsFragment : SettingsFragment() {
 
     private fun updateSyncAccountSummary() {
         requirePreference<Preference>(R.string.sync_account_key)
-            .summary = preferenceManager.sharedPreferences!!.getString("username", "")!!
-            .ifEmpty { getString(R.string.sync_account_summ_logged_out) }
+            .summary =
+            Prefs.username.ifNullOrEmpty { getString(R.string.sync_account_summ_logged_out) }
     }
 
-    private fun updateForceFullSyncEnabledState() {
-        val isLoggedIn = Preferences.hasAnkiWebAccount(requireContext().sharedPrefs())
-        requirePreference<Preference>(R.string.force_full_sync_key).isEnabled = isLoggedIn
+    private fun updateOneWaySyncEnabledState() {
+        val isLoggedIn = !Prefs.username.isNullOrEmpty()
+        requirePreference<Preference>(R.string.one_way_sync_key).isEnabled = isLoggedIn
     }
 
     // TODO trigger the summary change from MyAccount.kt once it is migrated to a fragment
     override fun onResume() {
         // Trigger a summary update in case the user logged in/out on MyAccount activity
         updateSyncAccountSummary()
-        updateForceFullSyncEnabledState()
+        updateOneWaySyncEnabledState()
         super.onResume()
     }
 }

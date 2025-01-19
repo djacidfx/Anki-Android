@@ -23,7 +23,7 @@ import com.ichi2.anki.multimediacard.IMultimediaEditableNote
 import com.ichi2.anki.multimediacard.fields.IField
 import com.ichi2.libanki.NoteTypeId
 import org.acra.util.IOUtils
-import java.util.*
+import java.util.ArrayList
 
 /**
  * Implementation of the editable note.
@@ -33,14 +33,15 @@ import java.util.*
 class MultimediaEditableNote : IMultimediaEditableNote {
     override var isModified = false
         private set
-    private var mFields: ArrayList<IField?>? = null
+    private var fields: ArrayList<IField?>? = null
     var modelId: NoteTypeId = 0
 
     /**
      * Field values in the note editor, before any editing has taken place
      * These values should not be modified
      */
-    private var mInitialFields: ArrayList<IField?>? = null
+    private var initialFields: ArrayList<IField?>? = null
+
     private fun setThisModified() {
         isModified = true
     }
@@ -55,23 +56,25 @@ class MultimediaEditableNote : IMultimediaEditableNote {
 
     private val fieldsPrivate: ArrayList<IField?>
         get() {
-            if (mFields == null) {
-                mFields = ArrayList(0)
+            if (fields == null) {
+                fields = ArrayList(0)
             }
-            return mFields!!
+            return fields!!
         }
     override val numberOfFields: Int
         get() = fieldsPrivate.size
 
-    override fun getField(index: Int): IField? {
-        return if (index in 0 until numberOfFields) {
+    override fun getField(index: Int): IField? =
+        if (index in 0 until numberOfFields) {
             fieldsPrivate[index]
         } else {
             null
         }
-    }
 
-    override fun setField(index: Int, field: IField?): Boolean {
+    override fun setField(
+        index: Int,
+        field: IField?,
+    ): Boolean {
         if (index in 0 until numberOfFields) {
             // If the same unchanged field is set.
             if (getField(index) === field) {
@@ -88,24 +91,19 @@ class MultimediaEditableNote : IMultimediaEditableNote {
     }
 
     fun freezeInitialFieldValues() {
-        mInitialFields = ArrayList()
-        for (f in mFields!!) {
-            mInitialFields!!.add(cloneField(f))
+        initialFields = ArrayList()
+        for (f in fields!!) {
+            initialFields!!.add(cloneField(f))
         }
     }
 
     override val initialFieldCount: Int
-        get() = mInitialFields!!.size
+        get() = initialFields!!.size
 
-    override fun getInitialField(index: Int): IField? {
-        return cloneField(mInitialFields!![index])
-    }
+    override fun getInitialField(index: Int): IField? = cloneField(initialFields!![index])
 
-    private fun cloneField(f: IField?): IField? {
-        return IOUtils.deserialize(IField::class.java, IOUtils.serialize(f!!))
-    }
+    private fun cloneField(f: IField?): IField? = IOUtils.deserialize(IField::class.java, IOUtils.serialize(f!!))
 
-    companion object {
-        private const val serialVersionUID = -6161821367135636659L
-    }
+    val isEmpty: Boolean
+        get() = fields.isNullOrEmpty()
 }

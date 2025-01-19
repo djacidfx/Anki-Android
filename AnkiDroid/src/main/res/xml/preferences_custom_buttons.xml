@@ -122,7 +122,7 @@ TODO: Add a unit test
             android:entries="@array/custom_button_labels"
             android:entryValues="@array/custom_button_values"
             android:key="@string/custom_button_toggle_mic_toolbar_key"
-            android:title="@string/menu_toggle_mic_tool_bar"
+            android:title="@string/menu_enable_voice_playback"
             app:useSimpleSummaryProvider="true"/>
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/menu_dismiss_note" >
@@ -190,6 +190,72 @@ TODO: Add a unit test
             android:entryValues="@array/custom_button_values"
             android:key="@string/custom_button_clear_whiteboard_key"
             android:title="@string/clear_whiteboard"
+            app:useSimpleSummaryProvider="true"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/user_actions">
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_1"
+            android:key="@string/custom_button_user_action_1_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_2"
+            android:key="@string/custom_button_user_action_2_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_3"
+            android:key="@string/custom_button_user_action_3_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_4"
+            android:key="@string/custom_button_user_action_4_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_5"
+            android:key="@string/custom_button_user_action_5_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_6"
+            android:key="@string/custom_button_user_action_6_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_7"
+            android:key="@string/custom_button_user_action_7_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_8"
+            android:key="@string/custom_button_user_action_8_key"
+            app:useSimpleSummaryProvider="true"/>
+        <ListPreference
+            android:defaultValue="3"
+            android:entries="@array/custom_button_labels"
+            android:entryValues="@array/custom_button_values"
+            android:title="@string/user_action_9"
+            android:key="@string/custom_button_user_action_9_key"
             app:useSimpleSummaryProvider="true"/>
     </PreferenceCategory>
 </PreferenceScreen>

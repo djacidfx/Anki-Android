@@ -21,24 +21,29 @@ import android.content.DialogInterface
 import android.os.Bundle
 import android.view.View
 import android.widget.CheckBox
+import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import androidx.annotation.IdRes
 import androidx.appcompat.app.AppCompatDialogFragment
+import androidx.core.os.bundleOf
 import androidx.fragment.app.activityViewModels
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ichi2.anki.R
 import com.ichi2.anki.browser.CardBrowserViewModel
 import com.ichi2.anki.model.CardsOrNotes
+import timber.log.Timber
 
-class BrowserOptionsDialog(private val cardsOrNotes: CardsOrNotes, private val isTruncated: Boolean) : AppCompatDialogFragment() {
+class BrowserOptionsDialog : AppCompatDialogFragment() {
     private lateinit var dialogView: View
 
     private val viewModel: CardBrowserViewModel by activityViewModels()
 
     private val positiveButtonClick = { _: DialogInterface, _: Int ->
-        @IdRes val selectedButtonId = dialogView.findViewById<RadioGroup>(R.id.select_browser_mode).checkedRadioButtonId
-        val newCardsOrNotes = if (selectedButtonId == R.id.select_cards_mode) CardsOrNotes.CARDS else CardsOrNotes.NOTES
+        @IdRes val selectedButtonId =
+            dialogView.findViewById<RadioGroup>(R.id.select_browser_mode).checkedRadioButtonId
+        val newCardsOrNotes =
+            if (selectedButtonId == R.id.select_cards_mode) CardsOrNotes.CARDS else CardsOrNotes.NOTES
         if (cardsOrNotes != newCardsOrNotes) {
             viewModel.setCardsOrNotes(newCardsOrNotes)
         }
@@ -46,6 +51,25 @@ class BrowserOptionsDialog(private val cardsOrNotes: CardsOrNotes, private val i
 
         if (newTruncate != isTruncated) {
             viewModel.setTruncated(newTruncate)
+        }
+    }
+
+    private val cardsOrNotes by lazy {
+        when (arguments?.getBoolean(CARDS_OR_NOTES_KEY)) {
+            true -> CardsOrNotes.CARDS
+            false -> CardsOrNotes.NOTES
+            null -> {
+                // Default case, and what we'll do if there were no arguments supplied
+                Timber.w("BrowserOptionsDialog instantiated without configuration.")
+                CardsOrNotes.CARDS
+            }
+        }
+    }
+
+    private val isTruncated by lazy {
+        arguments?.getBoolean(IS_TRUNCATED_KEY) ?: run {
+            Timber.w("BrowserOptionsDialog instantiated without configuration.")
+            false
         }
     }
 
@@ -61,6 +85,13 @@ class BrowserOptionsDialog(private val cardsOrNotes: CardsOrNotes, private val i
 
         dialogView.findViewById<CheckBox>(R.id.truncate_checkbox).isChecked = isTruncated
 
+        dialogView.findViewById<LinearLayout>(R.id.action_rename_flag).setOnClickListener {
+            Timber.d("Rename flag clicked")
+            val flagRenameDialog = FlagRenameDialog()
+            flagRenameDialog.show(parentFragmentManager, "FlagRenameDialog")
+            dismiss()
+        }
+
         return MaterialAlertDialogBuilder(requireContext()).run {
             this.setView(dialogView)
             this.setTitle(getString(R.string.browser_options_dialog_heading))
@@ -69,6 +100,25 @@ class BrowserOptionsDialog(private val cardsOrNotes: CardsOrNotes, private val i
             }
             this.setPositiveButton(getString(R.string.dialog_ok), DialogInterface.OnClickListener(function = positiveButtonClick))
             this.create()
+        }
+    }
+
+    companion object {
+        private const val CARDS_OR_NOTES_KEY = "cardsOrNotes"
+        private const val IS_TRUNCATED_KEY = "isTruncated"
+
+        fun newInstance(
+            cardsOrNotes: CardsOrNotes,
+            isTruncated: Boolean,
+        ): BrowserOptionsDialog {
+            Timber.i("BrowserOptionsDialog::newInstance")
+            return BrowserOptionsDialog().apply {
+                arguments =
+                    bundleOf(
+                        CARDS_OR_NOTES_KEY to (cardsOrNotes == CardsOrNotes.CARDS),
+                        IS_TRUNCATED_KEY to isTruncated,
+                    )
+            }
         }
     }
 }

@@ -44,6 +44,8 @@ Thumbs.db
 *.iws
 /.idea/*
 /captures
+# File that should be deleted by java's test but sometime is not
+AnkiDroid/.attach_pid*
 
 # IDEA/Android Studio Ignore exceptions - this lets you share things you specifically want all team members to use
 !/.idea/codeStyles/
@@ -63,3 +65,7 @@ AnkiDroid/ACRA-INSTALLATION
 
 #ignore the local insufficient memory for the Java Runtime Environment files
 hs_err_pid*
+
+# Ignore kotlin 2.0 compiler files (.salive: session-is-alive)
+# https://github.com/JetBrains/kotlin/blob/ca34e5d2fd255ed0501bae4fae3d3691dc40d375/libraries/tools/kotlin-gradle-plugin/src/common/kotlin/org/jetbrains/kotlin/compilerRunner/GradleKotlinCompilerRunner.kt#L458
+/.kotlin

@@ -18,7 +18,7 @@
 package com.ichi2.utils
 
 import org.jetbrains.annotations.Contract
-import java.util.*
+import java.util.Locale
 import kotlin.math.min
 
 object StringUtil {
@@ -32,9 +32,7 @@ object StringUtil {
     }
 }
 
-fun String.trimToLength(maxLength: Int): String {
-    return this.substring(0, min(this.length, maxLength))
-}
+fun String.trimToLength(maxLength: Int): String = this.substring(0, min(this.length, maxLength))
 
 fun String.lastIndexOfOrNull(c: Char): Int? =
     when (val index = this.lastIndexOf(c)) {

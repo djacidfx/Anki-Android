@@ -20,27 +20,44 @@ package com.ichi2.anki
 import android.app.Activity
 import android.content.ClipData
 import android.content.Intent
+import android.os.Bundle
 import android.widget.EditText
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.isDialog
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.ichi2.anki.AbstractFlashcardViewer.Companion.editorCard
+import anki.config.ConfigKey
+import com.ichi2.anim.ActivityTransitionAnimation.Direction.DEFAULT
 import com.ichi2.anki.NoteEditorTest.FromScreen.DECK_LIST
 import com.ichi2.anki.NoteEditorTest.FromScreen.REVIEWER
 import com.ichi2.anki.api.AddContentApi.Companion.DEFAULT_DECK_ID
-import com.ichi2.anki.multimediacard.activity.MultimediaEditFieldActivity
+import com.ichi2.anki.dialogs.DeckSelectionDialog.SelectableDeck
+import com.ichi2.anki.noteeditor.NoteEditorLauncher
+import com.ichi2.anki.utils.ext.isImageOcclusion
+import com.ichi2.annotations.DuplicatedCode
 import com.ichi2.libanki.Consts
+import com.ichi2.libanki.DeckId
 import com.ichi2.libanki.Decks.Companion.CURRENT_DECK
 import com.ichi2.libanki.Note
 import com.ichi2.libanki.NotetypeJson
 import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
+import com.ichi2.testutils.getString
+import kotlinx.coroutines.runBlocking
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.*
+import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.not
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -51,48 +68,41 @@ class NoteEditorTest : RobolectricTest() {
     @Config(qualifiers = "en")
     fun verifyCardsList() {
         val n = getNoteEditorEditingExistingBasicNote("Test", "Note", DECK_LIST)
-        assertThat("Cards list is correct", (n.findViewById<TextView>(R.id.CardEditorCardsButton)).text.toString(), equalTo("Cards: Card 1"))
+        assertThat(
+            "Cards list is correct",
+            (n.requireView().findViewById<TextView>(R.id.CardEditorCardsButton)).text.toString(),
+            equalTo("Cards: Card 1"),
+        )
     }
 
     @Test
-    fun verifyPreviewAddingNote() {
-        val n = getNoteEditorAdding(NoteType.BASIC).withFirstField("Preview Test").build()
-        n.performPreview()
-        val intent = shadowOf(n).nextStartedActivityForResult
-        val noteEditorBundle = intent.intent.getBundleExtra("noteEditorBundle")
-        assertThat("Bundle set to add note style", noteEditorBundle!!.getBoolean("addNote"), equalTo(true))
-        val fieldsBundle = noteEditorBundle.getBundle("editFields")
-        assertThat("Bundle has fields", fieldsBundle, notNullValue())
-        assertThat("Bundle has fields edited value", fieldsBundle!!.getString("0"), equalTo("Preview Test"))
-        assertThat("Bundle has empty tag list", noteEditorBundle.getStringArrayList("tags"), equalTo(ArrayList<Any>()))
-        assertThat("Bundle has no ordinal for ephemeral preview", intent.intent.hasExtra("ordinal"), equalTo(false))
-        assertThat("Bundle has a temporary model saved", intent.intent.hasExtra(CardTemplateNotetype.INTENT_MODEL_FILENAME), equalTo(true))
-    }
+    fun errorSavingNoteWithNoFirstFieldDisplaysNoFirstField() =
+        runTest {
+            val noteEditor =
+                getNoteEditorAdding(NoteType.BASIC)
+                    .withNoFirstField()
+                    .build()
+            noteEditor.saveNote()
+            val actualResourceId = noteEditor.snackbarErrorText
+            assertThat(actualResourceId, equalTo(CollectionManager.TR.addingTheFirstFieldIsEmpty()))
+        }
 
     @Test
-    fun whenEditingMultimediaEditUsesCurrentValueOfFields() {
-        // Arrange
-        val fieldIndex = 0
-        val n = getNoteEditorEditingExistingBasicNote("Hello", "World", REVIEWER)
-        enterTextIntoField(n, fieldIndex, "Good Afternoon")
+    fun testErrorMessageNull() =
+        runTest {
+            val noteEditor =
+                getNoteEditorAdding(NoteType.BASIC)
+                    .withNoFirstField()
+                    .build()
 
-        // Act
-        openAdvancedTextEditor(n, fieldIndex)
+            noteEditor.saveNote()
+            assertThat(noteEditor.addNoteErrorMessage, equalTo(CollectionManager.TR.addingTheFirstFieldIsEmpty()))
 
-        // Assert
-        val intent = shadowOf(n).nextStartedActivityForResult
-        val actualField = MultimediaEditFieldActivity.getFieldFromIntent(intent.intent)!!
-        assertThat("Provided value should be the updated value", actualField.second.formattedValue, equalTo("Good Afternoon"))
-    }
+            noteEditor.setFieldValueFromUi(0, "Hello")
 
-    @Test
-    fun errorSavingNoteWithNoFirstFieldDisplaysNoFirstField() {
-        val noteEditor = getNoteEditorAdding(NoteType.BASIC)
-            .withNoFirstField()
-            .build()
-        val actualResourceId = noteEditor.addNoteErrorResource
-        assertThat(actualResourceId, equalTo(R.string.note_editor_no_first_field))
-    }
+            noteEditor.saveNote()
+            assertThat(noteEditor.addNoteErrorMessage, equalTo(null))
+        }
 
 //    @Test
 //    @RustCleanup("needs update for new backend")
@@ -118,71 +128,90 @@ class NoteEditorTest : RobolectricTest() {
 //    }
 
     @Test
-    fun errorSavingClozeNoteWithNoFirstFieldDisplaysClozeError() {
-        val noteEditor = getNoteEditorAdding(NoteType.CLOZE)
-            .withNoFirstField()
-            .build()
-        val actualResourceId = noteEditor.addNoteErrorResource
-        assertThat(actualResourceId, equalTo(R.string.note_editor_no_cloze_delations))
-    }
+    fun errorSavingClozeNoteWithNoFirstFieldDisplaysClozeError() =
+        runTest {
+            val noteEditor =
+                getNoteEditorAdding(NoteType.CLOZE)
+                    .withNoFirstField()
+                    .build()
+            noteEditor.saveNote()
+            val actualResourceId = noteEditor.snackbarErrorText
+            assertThat(actualResourceId, equalTo(CollectionManager.TR.addingTheFirstFieldIsEmpty()))
+        }
 
     @Test
-    fun errorSavingClozeNoteWithNoClozeDeletionsDisplaysClozeError() {
-        val noteEditor = getNoteEditorAdding(NoteType.CLOZE)
-            .withFirstField("NoCloze")
-            .build()
-        val actualResourceId = noteEditor.addNoteErrorResource
-        assertThat(actualResourceId, equalTo(R.string.note_editor_no_cloze_delations))
-    }
+    fun errorSavingClozeNoteWithNoClozeDeletionsDisplaysClozeError() =
+        runTest {
+            val noteEditor =
+                getNoteEditorAdding(NoteType.CLOZE)
+                    .withFirstField("NoCloze")
+                    .build()
+            noteEditor.saveNote()
+            val actualResourceId = noteEditor.snackbarErrorText
+            assertThat(
+                actualResourceId,
+                equalTo(CollectionManager.TR.addingYouHaveAClozeDeletionNote()),
+            )
+        }
 
     @Test
-    fun errorSavingNoteWithNoTemplatesShowsNoCardsCreated() {
-        val noteEditor = getNoteEditorAdding(NoteType.BACK_TO_FRONT)
-            .withFirstField("front is not enough")
-            .build()
-        val actualResourceId = noteEditor.addNoteErrorResource
-        assertThat(actualResourceId, equalTo(R.string.note_editor_no_cards_created))
-    }
+    fun errorSavingNoteWithNoTemplatesShowsNoCardsCreated() =
+        runTest {
+            val noteEditor =
+                getNoteEditorAdding(NoteType.BACK_TO_FRONT)
+                    .withFirstField("front is not enough")
+                    .build()
+            noteEditor.saveNote()
+            val actualResourceId = noteEditor.snackbarErrorText
+            assertThat(actualResourceId, equalTo(getString(R.string.note_editor_no_cards_created)))
+        }
 
     @Test
-    fun clozeNoteWithNoClozeDeletionsDoesNotSave() = runTest {
-        val initialCards = cardCount
-        val editor = getNoteEditorAdding(NoteType.CLOZE)
-            .withFirstField("no cloze deletions")
-            .build()
-        editor.saveNote()
-        assertThat(cardCount, equalTo(initialCards))
-    }
+    fun clozeNoteWithNoClozeDeletionsDoesNotSave() =
+        runTest {
+            val initialCards = cardCount
+            val editor =
+                getNoteEditorAdding(NoteType.CLOZE)
+                    .withFirstField("no cloze deletions")
+                    .build()
+            editor.saveNote()
+            assertThat(cardCount, equalTo(initialCards))
+        }
 
     @Test
-    fun clozeNoteWithClozeDeletionsDoesSave() = runTest {
-        val initialCards = cardCount
-        val editor = getNoteEditorAdding(NoteType.CLOZE)
-            .withFirstField("{{c1::AnkiDroid}} is fantastic")
-            .build()
-        editor.saveNote()
-        assertThat(cardCount, equalTo(initialCards + 1))
-    }
+    fun clozeNoteWithClozeDeletionsDoesSave() =
+        runTest {
+            val initialCards = cardCount
+            val editor =
+                getNoteEditorAdding(NoteType.CLOZE)
+                    .withFirstField("{{c1::AnkiDroid}} is fantastic")
+                    .build()
+            editor.saveNote()
+            assertThat(cardCount, equalTo(initialCards + 1))
+        }
 
     @Test
     @Ignore("Not yet implemented")
-    fun clozeNoteWithClozeInWrongFieldDoesNotSave() = runTest {
-        // Anki Desktop blocks with "Continue?", we should just block to match the above test
-        val initialCards = cardCount
-        val editor = getNoteEditorAdding(NoteType.CLOZE)
-            .withSecondField("{{c1::AnkiDroid}} is fantastic")
-            .build()
-        editor.saveNote()
-        assertThat(cardCount, equalTo(initialCards))
-    }
+    fun clozeNoteWithClozeInWrongFieldDoesNotSave() =
+        runTest {
+            // Anki Desktop blocks with "Continue?", we should just block to match the above test
+            val initialCards = cardCount
+            val editor =
+                getNoteEditorAdding(NoteType.CLOZE)
+                    .withSecondField("{{c1::AnkiDroid}} is fantastic")
+                    .build()
+            editor.saveNote()
+            assertThat(cardCount, equalTo(initialCards))
+        }
 
     @Test
     fun verifyStartupAndCloseWithNoCollectionDoesNotCrash() {
         enableNullCollection()
-        ActivityScenario.launchActivityForResult(NoteEditor::class.java).use { scenario ->
-            scenario.onActivity { noteEditor: NoteEditor ->
-                noteEditor.onBackPressedDispatcher.onBackPressed()
-                assertThat("Pressing back should finish the activity", noteEditor.isFinishing)
+        val intent = NoteEditorLauncher.AddNote().getIntent(targetContext)
+        ActivityScenario.launchActivityForResult<SingleFragmentActivity>(intent).use { scenario ->
+            scenario.onNoteEditor { noteEditor ->
+                noteEditor.requireActivity().onBackPressedDispatcher.onBackPressed()
+                assertThat("Pressing back should finish the activity", noteEditor.requireActivity().isFinishing)
             }
             val result = scenario.result
             assertThat("Activity should be cancelled as no changes were made", result.resultCode, equalTo(Activity.RESULT_CANCELED))
@@ -190,52 +219,74 @@ class NoteEditorTest : RobolectricTest() {
     }
 
     @Test
+    fun testHandleMultimediaActionsDisplaysBottomSheet() {
+        val intent = NoteEditorLauncher.AddNote().getIntent(targetContext)
+        ActivityScenario.launchActivityForResult<SingleFragmentActivity>(intent).use { scenario ->
+            scenario.onNoteEditor { noteEditor ->
+                noteEditor.showMultimediaBottomSheet()
+
+                onView(withId(R.id.multimedia_action_image)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.multimedia_action_audio)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.multimedia_action_drawing)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.multimedia_action_recording)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.multimedia_action_video)).inRoot(isDialog()).check(matches(isDisplayed()))
+                onView(withId(R.id.multimedia_action_camera)).inRoot(isDialog()).check(matches(isDisplayed()))
+            }
+        }
+    }
+
+    @Test
     fun copyNoteCopiesDeckId() {
         val currentDid = addDeck("Basic::Test")
         col.config.set(CURRENT_DECK, currentDid)
-        val n = super.addNoteUsingBasicModel("Test", "Note")
+        val n = super.addBasicNote("Test", "Note")
         n.notetype.put("did", currentDid)
         val editor = getNoteEditorEditingExistingBasicNote("Test", "Note", DECK_LIST)
         col.config.set(CURRENT_DECK, Consts.DEFAULT_DECK_ID) // Change DID if going through default path
-        val copyNoteIntent = getCopyNoteIntent(editor)
-        val newNoteEditor = super.startActivityNormallyOpenCollectionWithIntent(NoteEditor::class.java, copyNoteIntent)
+        val copyNoteBundle = getCopyNoteIntent(editor)
+        val newNoteEditor = openNoteEditorWithArgs(copyNoteBundle)
         assertThat("Selected deck ID should be the current deck id", editor.deckId, equalTo(currentDid))
-        assertThat("Deck ID in the intent should be the selected deck id", copyNoteIntent.getLongExtra(NoteEditor.EXTRA_DID, -404L), equalTo(currentDid))
+        assertThat(
+            "Deck ID in the intent should be the selected deck id",
+            copyNoteBundle.getLong(NoteEditor.EXTRA_DID, -404L),
+            equalTo(currentDid),
+        )
         assertThat("Deck ID in the new note should be the ID provided in the intent", newNoteEditor.deckId, equalTo(currentDid))
     }
 
     @Test
-    fun stickyFieldsAreUnchangedAfterAdd() = runTest {
-        // #6795 - newlines were converted to <br>
-        val basic = makeNoteForType(NoteType.BASIC)
+    fun stickyFieldsAreUnchangedAfterAdd() =
+        runTest {
+            // #6795 - newlines were converted to <br>
+            val basic = makeNoteForType(NoteType.BASIC)
 
-        // Enable sticky "Front" field
-        basic!!.getJSONArray("flds").getJSONObject(0).put("sticky", true)
-        val initFirstField = "Hello"
-        val initSecondField = "unused"
-        val newFirstField = "Hello" + FieldEditText.NEW_LINE + "World" // /r/n on Windows under Robolectric
-        val editor = getNoteEditorAdding(NoteType.BASIC)
-            .withFirstField(initFirstField)
-            .withSecondField(initSecondField)
-            .build()
-        assertThat(editor.currentFieldStrings.toList(), contains(initFirstField, initSecondField))
-        editor.setFieldValueFromUi(0, newFirstField)
-        assertThat(editor.currentFieldStrings.toList(), contains(newFirstField, initSecondField))
+            // Enable sticky "Front" field
+            basic!!.flds[0].sticky = true
+            val initFirstField = "Hello"
+            val initSecondField = "unused"
+            val newFirstField = "Hello" + FieldEditText.NEW_LINE + "World" // /r/n on Windows under Robolectric
+            val editor =
+                getNoteEditorAdding(NoteType.BASIC)
+                    .withFirstField(initFirstField)
+                    .withSecondField(initSecondField)
+                    .build()
+            assertThat(editor.currentFieldStrings.toList(), contains(initFirstField, initSecondField))
+            editor.setFieldValueFromUi(0, newFirstField)
+            assertThat(editor.currentFieldStrings.toList(), contains(newFirstField, initSecondField))
 
-        editor.saveNote()
-        waitForAsyncTasksToComplete()
-        val actual = editor.currentFieldStrings.toList()
+            editor.saveNote()
+            waitForAsyncTasksToComplete()
+            val actual = editor.currentFieldStrings.toList()
 
-        assertThat("newlines should be preserved, second field should be blanked", actual, contains(newFirstField, ""))
-    }
+            assertThat("newlines should be preserved, second field should be blanked", actual, contains(newFirstField, ""))
+        }
 
     @Test
     fun processTextIntentShouldCopyFirstField() {
         ensureCollectionLoadIsSynchronous()
-
         val i = Intent(Intent.ACTION_PROCESS_TEXT)
         i.putExtra(Intent.EXTRA_PROCESS_TEXT, "hello\nworld")
-        val editor = startActivityNormallyOpenCollectionWithIntent(NoteEditor::class.java, i)
+        val editor = openNoteEditorWithArgs(i.extras!!, i.action)
         val actual = editor.currentFieldStrings.toList()
 
         assertThat(actual, contains("hello\nworld", ""))
@@ -244,14 +295,14 @@ class NoteEditorTest : RobolectricTest() {
     @Test
     fun previewWorksWithNoError() {
         // #6923 regression test - Low value - Could not make this fail as onSaveInstanceState did not crash under Robolectric.
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
-        assertDoesNotThrow { editor.performPreview() }
+        val editor = getNoteEditorAddingNote(DECK_LIST)
+        assertDoesNotThrow { runBlocking { editor.performPreview() } }
     }
 
     @Test
     fun clearFieldWorks() {
         // #7522
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         editor.setFieldValueFromUi(1, "Hello")
         assertThat(editor.currentFieldStrings[1], equalTo("Hello"))
         editor.clearField(1)
@@ -260,7 +311,7 @@ class NoteEditorTest : RobolectricTest() {
 
     @Test
     fun insertIntoFocusedFieldStartsAtSelection() {
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         val field: EditText = editor.getFieldForTest(0)
         editor.insertStringInField(field, "Hello")
         field.setSelection(3)
@@ -270,7 +321,7 @@ class NoteEditorTest : RobolectricTest() {
 
     @Test
     fun insertIntoFocusedFieldReplacesSelection() {
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         val field: EditText = editor.getFieldForTest(0)
         editor.insertStringInField(field, "12345")
         field.setSelection(2, 3) // select "3"
@@ -281,7 +332,7 @@ class NoteEditorTest : RobolectricTest() {
     @Test
     fun insertIntoFocusedFieldReplacesSelectionIfBackwards() {
         // selections can be backwards if the user uses keyboards
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         val field: EditText = editor.getFieldForTest(0)
         editor.insertStringInField(field, "12345")
         field.setSelection(3, 2) // select "3" (right to left)
@@ -292,13 +343,13 @@ class NoteEditorTest : RobolectricTest() {
     @Test
     fun defaultsToCapitalized() {
         // Requested in #3758, this seems like a sensible default
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         assertThat("Fields should have their first word capitalized by default", editor.getFieldForTest(0).isCapitalized, equalTo(true))
     }
 
     @Test
     fun pasteHtmlAsPlainTextTest() {
-        val editor = getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java)
+        val editor = getNoteEditorAddingNote(DECK_LIST)
         editor.setCurrentlySelectedModel(col.notetypes.byName("Basic")!!.getLong("id"))
         val field = editor.getFieldForTest(0)
         field.clipboard!!.setPrimaryClip(ClipData.newHtmlText("text", "text", """<span style="color: red">text</span>"""))
@@ -349,15 +400,119 @@ class NoteEditorTest : RobolectricTest() {
     @Test
     fun `can open with corrupt current deck - Issue 14096`() {
         col.config.set(CURRENT_DECK, '"' + "1688546411954" + '"')
-        getNoteEditorAddingNote(DECK_LIST, NoteEditor::class.java).apply {
+        getNoteEditorAddingNote(DECK_LIST).apply {
             assertThat("current deck is default after corruption", deckId, equalTo(DEFAULT_DECK_ID))
         }
     }
 
-    private fun getCopyNoteIntent(editor: NoteEditor): Intent {
-        val editorShadow = shadowOf(editor)
+    @Test
+    fun `can switch two image occlusion note types 15579`() {
+        val otherOcclusion = getSecondImageOcclusionNoteType()
+        getNoteEditorAdding(NoteType.IMAGE_OCCLUSION).build().apply {
+            val position = requireNotNull(noteTypeSpinner!!.getItemIndex(otherOcclusion.name)) { "could not find ${otherOcclusion.name}" }
+            noteTypeSpinner!!.setSelection(position)
+        }
+    }
+
+    @Test
+    fun `edit note in filtered deck from reviewer - 15919`() {
+        // TODO: As a future extension, the filtered deck should be displayed
+        // in the UI
+        addDeck("A")
+
+        // by default, the first deck is selected, so move the card to the second deck
+        val homeDeckId = addDeck("B", setAsSelected = true)
+        val note = addBasicNote().updateCards { did = homeDeckId }
+        moveToDynamicDeck(note)
+
+        // ensure note is correctly setup
+        assertThat("home deck", note.firstCard().oDid, equalTo(homeDeckId))
+        assertThat("current deck", note.firstCard().did, not(equalTo(homeDeckId)))
+
+        // act
+        val editor = getNoteEditorEditingExistingBasicNote(note, REVIEWER)
+
+        // assert
+        assertThat("current deck is the home deck", editor.deckId, equalTo(homeDeckId))
+        assertThat("no unsaved changes", !editor.hasUnsavedChanges())
+    }
+
+    @Test
+    fun `decide by note type preference - 13931`() =
+        runTest {
+            col.config.setBool(ConfigKey.Bool.ADDING_DEFAULTS_TO_CURRENT_DECK, false)
+            addDeck("Basic")
+            val reversedDeckId = addDeck("Reversed", setAsSelected = true)
+
+            assertThat("setup: deckId", col.notetypes.byName("Basic")!!.did, equalTo(1))
+
+            getNoteEditorAdding(NoteType.BASIC).build().also { editor ->
+                editor.onDeckSelected(SelectableDeck(reversedDeckId, "Reversed"))
+                editor.setField(0, "Hello")
+                editor.saveNote()
+            }
+
+            col.notetypes.clearCache()
+
+            assertThat("a note was added", col.noteCount(), equalTo(1))
+            assertThat("note type deck is updated", col.notetypes.byName("Basic")!!.did, equalTo(reversedDeckId))
+
+            getNoteEditorAdding(NoteType.BASIC).build().also { editor ->
+                assertThat("Deck ID is remembered", editor.deckId, equalTo(reversedDeckId))
+            }
+        }
+
+    @Test
+    fun `editing card in filtered deck retains deck`() =
+        runTest {
+            val homeDeckId = addDeck("A")
+            val note = addBasicNote().updateCards { did = homeDeckId }
+            moveToDynamicDeck(note)
+
+            // ensure note is correctly setup
+            assertThat("home deck", note.firstCard().oDid, equalTo(homeDeckId))
+            assertThat("current deck", note.firstCard().did, not(equalTo(homeDeckId)))
+
+            getNoteEditorEditingExistingBasicNote(note, REVIEWER).apply {
+                setField(0, "Hello")
+                saveNote()
+            }
+
+            // ensure note is correctly setup
+            assertThat("after: home deck", note.firstCard().oDid, equalTo(homeDeckId))
+            assertThat("after: current deck", note.firstCard().did, not(equalTo(homeDeckId)))
+        }
+
+    private fun moveToDynamicDeck(note: Note): DeckId {
+        val dyn = addDynamicDeck("All")
+        col.decks.select(dyn)
+        col.sched.rebuildDyn()
+        assertThat("card is in dynamic deck", note.firstCard().did, equalTo(dyn))
+        return dyn
+    }
+
+    private fun getSecondImageOcclusionNoteType(): NotetypeJson {
+        val imageOcclusionNotes = col.notetypes.filter { it.isImageOcclusion }
+        return if (imageOcclusionNotes.size >= 2) {
+            imageOcclusionNotes.first { it.name != "Image Occlusion" }
+        } else {
+            col.notetypes.byName("Image Occlusion")!!.createClone()
+        }
+    }
+
+    private fun getCopyNoteIntent(editor: NoteEditor): Bundle {
+        val editorShadow = shadowOf(editor.requireActivity())
         editor.copyNote()
-        return editorShadow.peekNextStartedActivityForResult().intent
+        val intent = editorShadow.peekNextStartedActivityForResult().intent
+        return intent.getBundleExtra(SingleFragmentActivity.FRAGMENT_ARGS_EXTRA)!!
+    }
+
+    private fun Spinner.getItemIndex(toFind: Any): Int? {
+        for (i in 0 until count) {
+            if (this.getItemAtPosition(i) != toFind) continue
+            return i
+        }
+        return null
     }
 
     private val cardCount: Int
@@ -368,74 +523,107 @@ class NoteEditorTest : RobolectricTest() {
         return NoteEditorTestBuilder(n)
     }
 
-    private fun makeNoteForType(noteType: NoteType): NotetypeJson? {
-        return when (noteType) {
+    private fun makeNoteForType(noteType: NoteType): NotetypeJson? =
+        when (noteType) {
             NoteType.BASIC -> col.notetypes.byName("Basic")
             NoteType.CLOZE -> col.notetypes.byName("Cloze")
             NoteType.BACK_TO_FRONT -> {
-                val name = super.addNonClozeModel("Reversed", arrayOf("Front", "Back"), "{{Back}}", "{{Front}}")
+                val name = super.addStandardNoteType("Reversed", arrayOf("Front", "Back"), "{{Back}}", "{{Front}}")
                 col.notetypes.byName(name)
             }
             NoteType.THREE_FIELD_INVALID_TEMPLATE -> {
-                val name = super.addNonClozeModel("Invalid", arrayOf("Front", "Back", "Side"), "", "")
+                val name = super.addStandardNoteType("Invalid", arrayOf("Front", "Back", "Side"), "", "")
                 col.notetypes.byName(name)
             }
+            NoteType.IMAGE_OCCLUSION -> col.notetypes.byName("Image Occlusion")
         }
-    }
 
-    private fun openAdvancedTextEditor(n: NoteEditor, fieldIndex: Int) {
-        n.startAdvancedTextEditor(fieldIndex)
-    }
-
-    private fun enterTextIntoField(n: NoteEditor, i: Int, newText: String) {
-        n.setFieldValueFromUi(i, newText)
-    }
-
-    private fun <T : NoteEditor?> getNoteEditorAddingNote(from: FromScreen, clazz: Class<T>): T {
+    private fun getNoteEditorAddingNote(from: FromScreen): NoteEditor {
         ensureCollectionLoadIsSynchronous()
-        val i = Intent()
-        when (from) {
-            REVIEWER -> i.putExtra(NoteEditor.EXTRA_CALLER, NoteEditor.CALLER_REVIEWER_ADD)
-            DECK_LIST -> i.putExtra(NoteEditor.EXTRA_CALLER, NoteEditor.CALLER_DECKPICKER)
-        }
-        return super.startActivityNormallyOpenCollectionWithIntent(clazz, i)
-    }
-
-    private fun getNoteEditorEditingExistingBasicNote(front: String, back: String, from: FromScreen): NoteEditor {
-        val n = super.addNoteUsingBasicModel(front, back)
-        return getNoteEditorEditingExistingBasicNote(n, from, NoteEditor::class.java)
-    }
-
-    private fun <T : NoteEditor?> getNoteEditorEditingExistingBasicNote(n: Note, from: FromScreen, clazz: Class<T>): T {
-        val i = Intent()
-        when (from) {
-            REVIEWER -> {
-                i.putExtra(NoteEditor.EXTRA_CALLER, NoteEditor.CALLER_REVIEWER_EDIT)
-                editorCard = n.firstCard()
+        val bundle =
+            when (from) {
+                REVIEWER -> NoteEditorLauncher.AddNoteFromReviewer().toBundle()
+                DECK_LIST -> NoteEditorLauncher.AddNote().toBundle()
             }
-            DECK_LIST -> i.putExtra(NoteEditor.EXTRA_CALLER, NoteEditor.CALLER_DECKPICKER)
-        }
-        return super.startActivityNormallyOpenCollectionWithIntent(clazz, i)
+        return openNoteEditorWithArgs(bundle)
     }
+
+    private fun getNoteEditorEditingExistingBasicNote(
+        front: String,
+        back: String,
+        from: FromScreen,
+    ): NoteEditor {
+        val n = super.addBasicNote(front, back)
+        return getNoteEditorEditingExistingBasicNote(n, from)
+    }
+
+    private fun getNoteEditorEditingExistingBasicNote(
+        n: Note,
+        from: FromScreen,
+    ): NoteEditor {
+        val bundle =
+            when (from) {
+                REVIEWER -> NoteEditorLauncher.EditCard(n.firstCard().id, DEFAULT).toBundle()
+                DECK_LIST -> NoteEditorLauncher.AddNote().toBundle()
+            }
+        return openNoteEditorWithArgs(bundle)
+    }
+
+    fun openNoteEditorWithArgs(
+        arguments: Bundle,
+        action: String? = null,
+    ): NoteEditor {
+        val activity =
+            startActivityNormallyOpenCollectionWithIntent(
+                SingleFragmentActivity::class.java,
+                NoteEditorLauncher.PassArguments(arguments).getIntent(targetContext, action),
+            )
+        return activity.getEditor()
+    }
+
+    @DuplicatedCode("NoteEditor in androidTest")
+    @Throws(Throwable::class)
+    fun ActivityScenario<SingleFragmentActivity>.onNoteEditor(block: (NoteEditor) -> Unit) {
+        val wrapped = AtomicReference<Throwable?>(null)
+        this.onActivity { activity: SingleFragmentActivity ->
+            try {
+                val editor = activity.getEditor()
+                block(editor)
+            } catch (t: Throwable) {
+                wrapped.set(t)
+            }
+        }
+        wrapped.get()?.let { throw it }
+    }
+
+    @DuplicatedCode("NoteEditor in androidTest")
+    fun SingleFragmentActivity.getEditor(): NoteEditor = supportFragmentManager.findFragmentById(R.id.fragment_container) as NoteEditor
 
     private enum class FromScreen {
-        DECK_LIST, REVIEWER
+        DECK_LIST,
+        REVIEWER,
     }
 
     /** We don't use constants here to allow for additional note types to be defined  */
     private enum class NoteType {
-        BASIC, CLOZE,
+        BASIC,
+        CLOZE,
 
         /**Basic, but Back is on the front  */
-        BACK_TO_FRONT, THREE_FIELD_INVALID_TEMPLATE
+        BACK_TO_FRONT,
+        THREE_FIELD_INVALID_TEMPLATE,
+        IMAGE_OCCLUSION,
     }
 
-    inner class NoteEditorTestBuilder(notetype: NotetypeJson?) {
-        private val mNotetype: NotetypeJson
-        private var mFirstField: String? = null
-        private var mSecondField: String? = null
+    inner class NoteEditorTestBuilder(
+        notetype: NotetypeJson?,
+    ) {
+        private val notetype: NotetypeJson
+        private var firstField: String? = null
+        private var secondField: String? = null
+
         fun build(): NoteEditor {
-            val editor = build(NoteEditor::class.java)
+            val editor = buildInternal()
             advanceRobolectricLooper()
             advanceRobolectricLooper()
             advanceRobolectricLooper()
@@ -446,34 +634,35 @@ class NoteEditorTest : RobolectricTest() {
             return editor
         }
 
-        fun <T : NoteEditor?> build(clazz: Class<T>): T {
-            col.notetypes.setCurrent(mNotetype)
-            val noteEditor = getNoteEditorAddingNote(REVIEWER, clazz)
+        fun buildInternal(): NoteEditor {
+            col.notetypes.setCurrent(notetype)
+            val noteEditor = getNoteEditorAddingNote(REVIEWER)
             advanceRobolectricLooper()
-            noteEditor!!.setFieldValueFromUi(0, mFirstField)
-            if (mSecondField != null) {
-                noteEditor.setFieldValueFromUi(1, mSecondField)
+            // image occlusion does not need a first field
+            if (this.firstField != null) {
+                noteEditor.setFieldValueFromUi(0, firstField)
+            }
+            if (secondField != null) {
+                noteEditor.setFieldValueFromUi(1, secondField)
             }
             return noteEditor
         }
 
-        fun withNoFirstField(): NoteEditorTestBuilder {
-            return this
-        }
+        fun withNoFirstField(): NoteEditorTestBuilder = this
 
         fun withFirstField(text: String?): NoteEditorTestBuilder {
-            mFirstField = text
+            firstField = text
             return this
         }
 
         fun withSecondField(text: String?): NoteEditorTestBuilder {
-            mSecondField = text
+            secondField = text
             return this
         }
 
         init {
             assertNotNull(notetype) { "model was null" }
-            mNotetype = notetype
+            this.notetype = notetype
         }
     }
 }

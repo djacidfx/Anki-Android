@@ -17,6 +17,9 @@
 package com.ichi2.libanki
 
 import anki.import_export.ExportLimit
+import anki.import_export.ImportAnkiPackageOptions
+import anki.import_export.ImportResponse
+import anki.import_export.exportAnkiPackageOptions
 import anki.search.SearchNode
 import net.ankiweb.rsdroid.Backend
 
@@ -37,14 +40,13 @@ import net.ankiweb.rsdroid.Backend
 fun Collection.createBackup(
     backupFolder: String,
     force: Boolean,
-    waitForCompletion: Boolean
-): Boolean {
-    return backend.createBackup(
+    waitForCompletion: Boolean,
+): Boolean =
+    backend.createBackup(
         backupFolder = backupFolder,
         force = force,
-        waitForCompletion = waitForCompletion
+        waitForCompletion = waitForCompletion,
     )
-}
 
 /**
  * If a backup is running, block until it completes, throwing if it fails, or already
@@ -62,13 +64,13 @@ fun Collection.awaitBackupCompletion() {
 fun importCollectionPackage(
     backend: Backend,
     colPath: String,
-    colpkgPath: String
+    colpkgPath: String,
 ) {
     backend.importCollectionPackage(
         colPath = colPath,
         backupPath = colpkgPath,
         mediaFolder = colPath.replace(".anki2", ".media"),
-        mediaDb = colPath.replace(".anki2", ".media.db")
+        mediaDb = colPath.replace(".anki2", ".media.db"),
     )
 }
 
@@ -80,20 +82,25 @@ fun importCollectionPackage(
 fun Collection.exportCollectionPackage(
     outPath: String,
     includeMedia: Boolean,
-    legacy: Boolean = true
+    legacy: Boolean,
 ) {
-    close(downgrade = false, forFullSync = true)
+    close(forFullSync = true)
     backend.exportCollectionPackage(
         outPath = outPath,
         includeMedia = includeMedia,
-        legacy = legacy
+        legacy = legacy,
     )
-    reopen(afterFullSync = false)
+    reopen()
 }
 
-fun Collection.importAnkiPackageRaw(input: ByteArray): ByteArray {
-    return backend.importAnkiPackageRaw(input)
-}
+fun Collection.importAnkiPackage(
+    packagePath: String,
+    options: ImportAnkiPackageOptions,
+): ImportResponse = backend.importAnkiPackage(packagePath, options)
+
+fun Collection.importAnkiPackageRaw(input: ByteArray): ByteArray = backend.importAnkiPackageRaw(input)
+
+fun Collection.getImportAnkiPackagePresetsRaw(input: ByteArray): ByteArray = backend.getImportAnkiPackagePresetsRaw(input)
 
 /**
  * Export the specified deck to an .apkg file.
@@ -103,21 +110,43 @@ fun Collection.importAnkiPackageRaw(input: ByteArray): ByteArray {
 fun Collection.exportAnkiPackage(
     outPath: String,
     withScheduling: Boolean,
+    withDeckConfigs: Boolean,
     withMedia: Boolean,
     limit: ExportLimit,
-    legacy: Boolean = true
+    legacy: Boolean,
 ) {
-    backend.exportAnkiPackage(outPath, withScheduling, withMedia, legacy, limit)
+    val options =
+        exportAnkiPackageOptions {
+            this.withScheduling = withScheduling
+            this.withMedia = withMedia
+            this.legacy = legacy
+            this.withDeckConfigs = withDeckConfigs
+        }
+    backend.exportAnkiPackage(outPath, options, limit)
 }
 
-fun Collection.getCsvMetadataRaw(input: ByteArray): ByteArray {
-    return backend.getCsvMetadataRaw(input)
+fun Collection.exportNotesCsv(
+    outPath: String,
+    withHtml: Boolean,
+    withTags: Boolean,
+    withDeck: Boolean,
+    withNotetype: Boolean,
+    withGuid: Boolean,
+    limit: ExportLimit,
+) {
+    backend.exportNoteCsv(outPath, withHtml, withTags, withDeck, withNotetype, withGuid, limit)
 }
 
-fun Collection.importCsvRaw(input: ByteArray): ByteArray {
-    return backend.importCsvRaw(input)
+fun Collection.exportCardsCsv(
+    outPath: String,
+    withHtml: Boolean,
+    limit: ExportLimit,
+) {
+    backend.exportCardCsv(outPath, withHtml, limit)
 }
 
-fun Collection.buildSearchString(input: ByteArray): String {
-    return backend.buildSearchString(SearchNode.parseFrom(input))
-}
+fun Collection.getCsvMetadataRaw(input: ByteArray): ByteArray = backend.getCsvMetadataRaw(input)
+
+fun Collection.importCsvRaw(input: ByteArray): ByteArray = backend.importCsvRaw(input)
+
+fun Collection.buildSearchString(input: ByteArray): String = backend.buildSearchString(SearchNode.parseFrom(input))

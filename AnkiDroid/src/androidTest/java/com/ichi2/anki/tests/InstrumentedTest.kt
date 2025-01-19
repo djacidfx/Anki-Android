@@ -24,17 +24,21 @@ import androidx.test.espresso.ViewInteraction
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiSelector
-import com.ichi2.anki.CollectionHelper
 import com.ichi2.anki.CollectionManager
+import com.ichi2.anki.testutil.addNote
 import com.ichi2.anki.utils.EnsureAllFilesAccessRule
 import com.ichi2.annotations.DuplicatedCode
 import com.ichi2.libanki.Card
+import com.ichi2.libanki.CardType
 import com.ichi2.libanki.Collection
-import com.ichi2.libanki.Consts
 import com.ichi2.libanki.Note
+import com.ichi2.libanki.QueueType
 import com.ichi2.libanki.utils.TimeManager
+import com.ichi2.testutils.common.IgnoreFlakyTestsInCIRule
 import kotlinx.coroutines.runBlocking
 import net.ankiweb.rsdroid.BackendException
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.lessThanOrEqualTo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -46,7 +50,7 @@ import kotlin.test.fail
 
 abstract class InstrumentedTest {
     internal val col: Collection
-        get() = CollectionHelper.instance.getColUnsafe(testContext)!!
+        get() = CollectionManager.getColUnsafe()
 
     @get:Throws(IOException::class)
     protected val emptyCol: Collection
@@ -54,6 +58,10 @@ abstract class InstrumentedTest {
 
     @get:Rule
     val ensureAllFilesAccessRule = EnsureAllFilesAccessRule()
+
+    /** Allows [com.ichi2.testutils.Flaky] to annotate tests in subclasses */
+    @get:Rule
+    val ignoreFlakyTests = IgnoreFlakyTestsInCIRule()
 
     /**
      * @return A File object pointing to a directory in which temporary test files can be placed. The directory is
@@ -71,9 +79,10 @@ abstract class InstrumentedTest {
          * https://github.com/react-native-community/react-native-device-info/blob/bb505716ff50e5900214fcbcc6e6434198010d95/android/src/main/java/com/learnium/RNDeviceInfo/RNDeviceModule.java#L185
          * @return boolean true if the execution environment is most likely an emulator
          */
-        fun isEmulator(): Boolean {
-            return (
-                Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic") ||
+        fun isEmulator(): Boolean =
+            (
+                Build.BRAND.startsWith("generic") &&
+                    Build.DEVICE.startsWith("generic") ||
                     Build.FINGERPRINT.startsWith("generic") ||
                     Build.FINGERPRINT.startsWith("unknown") ||
                     Build.HARDWARE.contains("goldfish") ||
@@ -89,28 +98,25 @@ abstract class InstrumentedTest {
                     Build.PRODUCT.contains("vbox86p") ||
                     Build.PRODUCT.contains("emulator") ||
                     Build.PRODUCT.contains("simulator")
-                )
-        }
+            )
     }
 
     @Before
-    fun runBeforeEachTest() {
+    open fun runBeforeEachTest() {
         closeAndroidNotRespondingDialog()
         // resolved issues with the collection being reused if useInMemoryDatabase is false
-        CollectionHelper.instance.setColForTests(null)
+        CollectionManager.setColForTests(null)
     }
 
     @After
     fun runAfterEachTest() {
         try {
-            if (CollectionHelper.instance.colIsOpenUnsafe()) {
-                CollectionHelper
-                    .instance
-                    .getColUnsafe(InstrumentationRegistry.getInstrumentation().targetContext)!!
-                    .debugEnsureNoOpenPointers()
+            if (CollectionManager.isOpenUnsafe()) {
+                CollectionManager.getColUnsafe().debugEnsureNoOpenPointers()
             }
             // If you don't tear down the database you'll get unexpected IllegalStateExceptions related to connections
-            CollectionHelper.instance.closeCollection("InstrumentedTest: End")
+            Timber.i("closeCollection: %s", "InstrumentedTest: End")
+            CollectionManager.closeCollectionBlocking()
         } catch (ex: BackendException) {
             if ("CollectionNotOpen" == ex.message) {
                 Timber.w(ex, "Collection was already disposed - may have been a problem")
@@ -126,8 +132,7 @@ abstract class InstrumentedTest {
 
     /** Restore regular collection behavior  */
     private fun disableNullCollection() {
-        CollectionHelper.setInstanceForTesting(CollectionHelper())
-        CollectionManager.emulateOpenFailure = false
+        CollectionManager.emulatedOpenFailure = null
     }
 
     // Instrumented tests can fail if there's a "App not responding"
@@ -146,21 +151,26 @@ abstract class InstrumentedTest {
 
     @DuplicatedCode("This is copied from RobolectricTest. This will be refactored into a shared library later")
     protected fun Card.moveToReviewQueue() {
-        this.queue = Consts.QUEUE_TYPE_REV
-        this.type = Consts.CARD_TYPE_REV
+        this.queue = QueueType.Rev
+        this.type = CardType.Rev
         this.due = 0
-        this.col.updateCard(this, true)
+        col.updateCard(this, true)
     }
 
     @DuplicatedCode("This is copied from RobolectricTest. This will be refactored into a shared library later")
-    internal fun addNoteUsingBasicModel(front: String = "Front", back: String = "Back"): Note {
-        return addNoteUsingModelName("Basic", front, back)
-    }
+    internal fun addNoteUsingBasicModel(
+        front: String = "Front",
+        back: String = "Back",
+    ): Note = addNoteUsingModelName("Basic", front, back)
 
     @DuplicatedCode("This is copied from RobolectricTest. This will be refactored into a shared library later")
-    private fun addNoteUsingModelName(name: String, vararg fields: String): Note {
-        val model = col.notetypes.byName(name)
-            ?: throw IllegalArgumentException("Could not find model '$name'")
+    private fun addNoteUsingModelName(
+        name: String,
+        vararg fields: String,
+    ): Note {
+        val model =
+            col.notetypes.byName(name)
+                ?: throw IllegalArgumentException("Could not find model '$name'")
         // PERF: if we modify newNote(), we can return the card and return a Pair<Note, Card> here.
         // Saves a database trip afterwards.
         val n = col.newNote(model)
@@ -170,23 +180,35 @@ abstract class InstrumentedTest {
         check(col.addNote(n) != 0) { "Could not add note: {${fields.joinToString(separator = ", ")}}" }
         return n
     }
+}
 
-    protected fun ViewInteraction.checkWithTimeout(
-        viewAssertion: ViewAssertion,
-        retryWaitTimeInMilliseconds: Long = 100,
-        maxWaitTimeInMilliseconds: Long = TimeUnit.SECONDS.toMillis(10)
-    ) {
-        val startTime = TimeManager.time.intTimeMS()
+/**
+ * Execute [viewAssertion] every [retryWaitTimeInMilliseconds] ms (by default 100),
+ * last try being after [maxWaitTimeInMilliseconds] (by default 10 seconds).
+ */
+fun ViewInteraction.checkWithTimeout(
+    viewAssertion: ViewAssertion,
+    retryWaitTimeInMilliseconds: Long = 100,
+    maxWaitTimeInMilliseconds: Long = TimeUnit.SECONDS.toMillis(10),
+) {
+    assertThat(
+        "The retry time is greater than the max wait time. You probably gave the argument in the wrong order.",
+        retryWaitTimeInMilliseconds,
+        lessThanOrEqualTo(maxWaitTimeInMilliseconds),
+    )
+    val startTime = TimeManager.time.intTimeMS()
 
-        while (TimeManager.time.intTimeMS() - startTime < maxWaitTimeInMilliseconds) {
-            try {
-                check(viewAssertion)
-                return
-            } catch (e: Throwable) {
+    do {
+        val timedOut = TimeManager.time.intTimeMS() - startTime >= maxWaitTimeInMilliseconds
+        try {
+            check(viewAssertion)
+            return
+        } catch (e: Throwable) {
+            if (timedOut) {
+                fail("View assertion was not true within $maxWaitTimeInMilliseconds milliseconds")
+            } else {
                 Thread.sleep(retryWaitTimeInMilliseconds)
             }
         }
-
-        fail("View assertion was not true within $maxWaitTimeInMilliseconds milliseconds")
-    }
+    } while (true)
 }

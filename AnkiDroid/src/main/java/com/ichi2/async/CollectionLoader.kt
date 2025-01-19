@@ -19,8 +19,7 @@ package com.ichi2.async
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.ichi2.anki.AnkiDroidApp
-import com.ichi2.anki.CollectionHelper
+import com.ichi2.anki.CollectionManager
 import com.ichi2.anki.CrashReportService
 import com.ichi2.libanki.Collection
 import kotlinx.coroutines.Dispatchers
@@ -33,21 +32,25 @@ object CollectionLoader {
         fun execute(col: Collection?)
     }
 
-    fun load(lifecycleOwner: LifecycleOwner, callback: Callback) {
+    fun load(
+        lifecycleOwner: LifecycleOwner,
+        callback: Callback,
+    ) {
         lifecycleOwner.lifecycleScope.launch {
-            val col = withContext(Dispatchers.IO) {
-                // load collection
-                try {
-                    Timber.d("CollectionLoader accessing collection")
-                    val col = CollectionHelper.instance.getColUnsafe(AnkiDroidApp.instance.applicationContext)
-                    Timber.i("CollectionLoader obtained collection")
-                    col
-                } catch (e: RuntimeException) {
-                    Timber.e(e, "loadInBackground - RuntimeException on opening collection")
-                    CrashReportService.sendExceptionReport(e, "CollectionLoader.load")
-                    null
+            val col =
+                withContext(Dispatchers.IO) {
+                    // load collection
+                    try {
+                        Timber.d("CollectionLoader accessing collection")
+                        val col = CollectionManager.getColUnsafe()
+                        Timber.i("CollectionLoader obtained collection")
+                        col
+                    } catch (e: RuntimeException) {
+                        Timber.e(e, "loadInBackground - RuntimeException on opening collection")
+                        CrashReportService.sendExceptionReport(e, "CollectionLoader.load")
+                        null
+                    }
                 }
-            }
             if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
                 callback.execute(col)
             }

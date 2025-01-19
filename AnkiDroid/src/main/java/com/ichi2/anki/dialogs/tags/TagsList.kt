@@ -20,7 +20,8 @@ import com.ichi2.utils.TagsUtil.getTagAncestors
 import com.ichi2.utils.TagsUtil.getTagRoot
 import com.ichi2.utils.UniqueArrayList
 import com.ichi2.utils.UniqueArrayList.Companion.from
-import java.util.*
+import java.util.ArrayList
+import java.util.TreeSet
 
 /**
  * A container class that keeps track of tags and their status, handling of tags are done in a case insensitive matter.
@@ -33,40 +34,40 @@ import java.util.*
  * @param checkedTags a list containing the currently selected tags. Any duplicates will be ignored.
  * @param uncheckedTags a list containing the currently unselected tags. Any duplicates will be ignored.
  */
-class TagsList constructor(
+class TagsList(
     allTags: List<String>,
     checkedTags: List<String>,
-    uncheckedTags: List<String>? = null
+    uncheckedTags: List<String>? = null,
 ) : Iterable<String> {
     /**
      * A Set containing the currently selected tags
      */
-    private val mCheckedTags: MutableSet<String>
+    private val checkedTags: MutableSet<String>
 
     /**
      * A Set containing the tags with indeterminate state
      */
-    private val mIndeterminateTags: MutableSet<String>
+    private val indeterminateTags: MutableSet<String>
 
     /**
      * List of all available tags
      */
-    private val mAllTags: UniqueArrayList<String>
+    private val allTags: UniqueArrayList<String>
 
     init {
-        mCheckedTags = TreeSet(java.lang.String.CASE_INSENSITIVE_ORDER)
-        mCheckedTags.addAll(checkedTags)
-        mAllTags = from(allTags, java.lang.String.CASE_INSENSITIVE_ORDER)
-        mAllTags.addAll(mCheckedTags)
-        mIndeterminateTags = TreeSet(java.lang.String.CASE_INSENSITIVE_ORDER)
+        this.checkedTags = TreeSet(java.lang.String.CASE_INSENSITIVE_ORDER)
+        this.checkedTags.addAll(checkedTags)
+        this.allTags = from(allTags, java.lang.String.CASE_INSENSITIVE_ORDER)
+        this.allTags.addAll(this.checkedTags)
+        indeterminateTags = TreeSet(java.lang.String.CASE_INSENSITIVE_ORDER)
         if (uncheckedTags != null) {
-            mAllTags.addAll(uncheckedTags)
+            this.allTags.addAll(uncheckedTags)
             // intersection between mCheckedTags and uncheckedTags
-            mIndeterminateTags.addAll(mCheckedTags)
+            indeterminateTags.addAll(this.checkedTags)
             val uncheckedSet: MutableSet<String> = TreeSet(java.lang.String.CASE_INSENSITIVE_ORDER)
             uncheckedSet.addAll(uncheckedTags)
-            mIndeterminateTags.retainAll(uncheckedSet)
-            mCheckedTags.removeAll(mIndeterminateTags)
+            indeterminateTags.retainAll(uncheckedSet)
+            this.checkedTags.removeAll(indeterminateTags)
         }
         prepareTagHierarchy()
     }
@@ -79,9 +80,7 @@ class TagsList constructor(
      * @throws IndexOutOfBoundsException if the index is out of range
      * (`index < 0 || index >= size()`)
      */
-    fun isChecked(index: Int): Boolean {
-        return isChecked(mAllTags[index])
-    }
+    fun isChecked(index: Int): Boolean = isChecked(allTags[index])
 
     /**
      * Return true if a tag is checked
@@ -89,9 +88,7 @@ class TagsList constructor(
      * @param tag the tag to check (case-insensitive)
      * @return whether the tag is checked or not
      */
-    fun isChecked(tag: String): Boolean {
-        return mCheckedTags.contains(tag)
-    }
+    fun isChecked(tag: String): Boolean = checkedTags.contains(tag)
 
     /**
      * Return true if a tag is indeterminate given its index in the list
@@ -101,9 +98,7 @@ class TagsList constructor(
      * @throws IndexOutOfBoundsException if the index is out of range
      * (`index < 0 || index >= size()`)
      */
-    fun isIndeterminate(index: Int): Boolean {
-        return isIndeterminate(mAllTags[index])
-    }
+    fun isIndeterminate(index: Int): Boolean = isIndeterminate(allTags[index])
 
     /**
      * Return true if a tag is indeterminate
@@ -111,9 +106,7 @@ class TagsList constructor(
      * @param tag the tag to check (case-insensitive)
      * @return whether the tag is indeterminate or not
      */
-    fun isIndeterminate(tag: String): Boolean {
-        return mIndeterminateTags.contains(tag)
-    }
+    fun isIndeterminate(tag: String): Boolean = indeterminateTags.contains(tag)
 
     /**
      * Adds a tag to the list if it is not already present.
@@ -123,7 +116,7 @@ class TagsList constructor(
      * @return true if tag was added (new tag)
      */
     fun add(tag: String): Boolean {
-        if (!mAllTags.add(tag)) {
+        if (!allTags.add(tag)) {
             return false
         }
         addAncestors(tag)
@@ -139,12 +132,15 @@ class TagsList constructor(
      * @return true if the tag changed its check status
      * false if the tag was already checked or not in the list
      */
-    fun check(tag: String, processAncestors: Boolean = true): Boolean {
-        if (!mAllTags.contains(tag)) {
+    fun check(
+        tag: String,
+        processAncestors: Boolean = true,
+    ): Boolean {
+        if (!allTags.contains(tag)) {
             return false
         }
-        mIndeterminateTags.remove(tag)
-        if (!mCheckedTags.add(tag)) {
+        indeterminateTags.remove(tag)
+        if (!checkedTags.add(tag)) {
             return false
         }
         if (processAncestors) {
@@ -160,9 +156,7 @@ class TagsList constructor(
      * @return true if the tag changed its check status
      * false if the tag was already unchecked or not in the list
      */
-    fun uncheck(tag: String): Boolean {
-        return mIndeterminateTags.remove(tag) || mCheckedTags.remove(tag)
-    }
+    fun uncheck(tag: String): Boolean = indeterminateTags.remove(tag) || checkedTags.remove(tag)
 
     /**
      * Mark a tag as indeterminate tag
@@ -172,11 +166,11 @@ class TagsList constructor(
      * false if the tag was already indeterminate, or not in the list
      */
     fun setIndeterminate(tag: String): Boolean {
-        if (!mAllTags.contains(tag)) {
+        if (!allTags.contains(tag)) {
             return false
         }
-        mCheckedTags.remove(tag)
-        return mIndeterminateTags.add(tag)
+        checkedTags.remove(tag)
+        return indeterminateTags.add(tag)
     }
 
     /**
@@ -187,20 +181,18 @@ class TagsList constructor(
      * @return true if this tag list changed as a result of the call
      */
     fun toggleAllCheckedStatuses(): Boolean {
-        mIndeterminateTags.clear()
-        if (mAllTags.size == mCheckedTags.size) {
-            mCheckedTags.clear()
+        indeterminateTags.clear()
+        if (allTags.size == checkedTags.size) {
+            checkedTags.clear()
             return true
         }
-        return mCheckedTags.addAll(mAllTags)
+        return checkedTags.addAll(allTags)
     }
 
     /**
      * @return Number of tags in the list
      */
-    fun size(): Int {
-        return mAllTags.size
-    }
+    fun size(): Int = allTags.size
 
     /**
      * Returns the tag at the specified position in this list.
@@ -210,46 +202,38 @@ class TagsList constructor(
      * @throws IndexOutOfBoundsException if the index is out of range
      * (`index < 0 || index >= size()`)
      */
-    operator fun get(index: Int): String {
-        return mAllTags[index]
-    }
+    operator fun get(index: Int): String = allTags[index]
 
     /**
      * @return true if there is no tags in the list
      */
     val isEmpty: Boolean
-        get() = mAllTags.isEmpty()
+        get() = allTags.isEmpty()
 
     /**
      * @return return a copy of checked tags
      */
-    fun copyOfCheckedTagList(): List<String> {
-        return ArrayList(mCheckedTags)
-    }
+    fun copyOfCheckedTagList(): List<String> = ArrayList(checkedTags)
 
     /**
      * @return return a copy of checked tags
      */
-    fun copyOfIndeterminateTagList(): List<String> {
-        return ArrayList(mIndeterminateTags)
-    }
+    fun copyOfIndeterminateTagList(): List<String> = ArrayList(indeterminateTags)
 
     /**
      * @return return a copy of all tags list
      */
-    fun copyOfAllTagList(): List<String> {
-        return ArrayList(mAllTags)
-    }
+    fun copyOfAllTagList(): List<String> = ArrayList(allTags)
 
     /**
      * Initialize the tag hierarchy.
      */
     private fun prepareTagHierarchy() {
-        val allTags: List<String> = ArrayList(mAllTags)
+        val allTags: List<String> = ArrayList(allTags)
         for (tag in allTags) {
             addAncestors(tag)
         }
-        for (tag in mCheckedTags) {
+        for (tag in checkedTags) {
             markAncestorsIndeterminate(tag)
         }
     }
@@ -260,7 +244,7 @@ class TagsList constructor(
      * @param tag The tag whose ancestors will be added.
      */
     private fun addAncestors(tag: String) {
-        mAllTags.addAll(getTagAncestors(tag))
+        allTags.addAll(getTagAncestors(tag))
     }
 
     /**
@@ -269,7 +253,7 @@ class TagsList constructor(
      * @param tag The tag whose ancestors will be marked as indeterminate if they are not checked.
      */
     private fun markAncestorsIndeterminate(tag: String) {
-        if (!mAllTags.contains(tag)) {
+        if (!allTags.contains(tag)) {
             return
         }
         getTagAncestors(tag)
@@ -282,25 +266,24 @@ class TagsList constructor(
      * A tag priors to another one if its root tag is checked or indeterminate while the other one's is not
      */
     fun sort() {
-        val sortedList = mAllTags.toList().sortedWith { lhs: String?, rhs: String? ->
-            val lhsRoot = getTagRoot(lhs!!)
-            val rhsRoot = getTagRoot(rhs!!)
-            val lhsChecked = isChecked(lhsRoot) || isIndeterminate(lhsRoot)
-            val rhsChecked = isChecked(rhsRoot) || isIndeterminate(rhsRoot)
-            if (lhsChecked != rhsChecked) {
-                if (lhsChecked) -1 else 1
-            } else {
-                compareTag(lhs, rhs)
+        val sortedList =
+            allTags.toList().sortedWith { lhs: String?, rhs: String? ->
+                val lhsRoot = getTagRoot(lhs!!)
+                val rhsRoot = getTagRoot(rhs!!)
+                val lhsChecked = isChecked(lhsRoot) || isIndeterminate(lhsRoot)
+                val rhsChecked = isChecked(rhsRoot) || isIndeterminate(rhsRoot)
+                if (lhsChecked != rhsChecked) {
+                    if (lhsChecked) -1 else 1
+                } else {
+                    compareTag(lhs, rhs)
+                }
             }
-        }
-        mAllTags.clear()
-        mAllTags.addAll(sortedList)
+        allTags.clear()
+        allTags.addAll(sortedList)
     }
 
     /**
      * @return Iterator over all tags
      */
-    override fun iterator(): MutableIterator<String> {
-        return mAllTags.iterator()
-    }
+    override fun iterator(): MutableIterator<String> = allTags.iterator()
 }

@@ -15,7 +15,11 @@
 package com.ichi2.anki.ui.preferences.screens
 
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.*
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewModelScope
 import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -26,7 +30,9 @@ import com.ichi2.anki.R
 import com.ichi2.anki.launchCatchingTask
 import com.ichi2.anki.preferences.requirePreference
 import com.ichi2.anki.snackbar.showSnackbar
-import com.ichi2.anki.ui.windows.managespace.*
+import com.ichi2.anki.ui.windows.managespace.CollectionDirectoryProvider
+import com.ichi2.anki.ui.windows.managespace.collectionDirectoryExists
+import com.ichi2.anki.ui.windows.managespace.ensureCanWriteToOrCreateCollectionDirectory
 import com.ichi2.anki.utils.getUserFriendlyErrorText
 import com.ichi2.preferences.HtmlHelpPreference
 import com.ichi2.preferences.IncrementerNumberRangePreferenceCompat
@@ -37,40 +43,54 @@ import kotlinx.coroutines.launch
 
 sealed interface State {
     data object Fetching : State
-    class Fetched(val backupLimits: BackupLimits) : State
+
+    class Fetched(
+        val backupLimits: BackupLimits,
+    ) : State
+
     sealed interface Error : State {
         data object NoCollection : Error
-        class Exception(val exception: kotlin.Exception) : Error
+
+        class Exception(
+            val exception: kotlin.Exception,
+        ) : Error
     }
 }
 
-class BackupLimitsViewModel : ViewModel(), CollectionDirectoryProvider {
+class BackupLimitsViewModel :
+    ViewModel(),
+    CollectionDirectoryProvider {
     override val collectionDirectory = CollectionManager.getCollectionDirectory()
 
     val flowOfState = MutableStateFlow<State>(State.Fetching)
 
-    fun launchFetchingOfBackupLimits() = viewModelScope.launch {
-        flowOfState.emit(
-            try {
-                ensureCanWriteToOrCreateCollectionDirectory()
-                if (!collectionDirectoryExists()) {
-                    State.Error.NoCollection
-                } else {
-                    val backupLimits = withCol { backend.getPreferences().backups }
-                    State.Fetched(backupLimits)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                State.Error.Exception(e)
-            }
-        )
-    }
+    fun launchFetchingOfBackupLimits() =
+        viewModelScope.launch {
+            flowOfState.emit(
+                try {
+                    ensureCanWriteToOrCreateCollectionDirectory()
+                    if (!collectionDirectoryExists()) {
+                        State.Error.NoCollection
+                    } else {
+                        val backupLimits = withCol { backend.getPreferences().backups }
+                        State.Fetched(backupLimits)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    State.Error.Exception(e)
+                },
+            )
+        }
 
     suspend fun updateBackupLimits(block: BackupLimits.Builder.() -> Unit) {
         withCol {
             val preferences = backend.getPreferences()
-            val backups = preferences.backups.toBuilder().apply(block).build()
+            val backups =
+                preferences.backups
+                    .toBuilder()
+                    .apply(block)
+                    .build()
             backend.setPreferences(preferences.toBuilder().setBackups(backups).build())
         }
 
@@ -91,7 +111,9 @@ class BackupLimitsViewModel : ViewModel(), CollectionDirectoryProvider {
  *
  *     backupLimitsPresenter.refresh()
  */
-class BackupLimitsPresenter(private val fragment: PreferenceFragmentCompat) : DefaultLifecycleObserver {
+class BackupLimitsPresenter(
+    private val fragment: PreferenceFragmentCompat,
+) : DefaultLifecycleObserver {
     private val viewModel: BackupLimitsViewModel by fragment.viewModels()
 
     private lateinit var backupsHelpPreference: HtmlHelpPreference
@@ -122,24 +144,26 @@ class BackupLimitsPresenter(private val fragment: PreferenceFragmentCompat) : De
             minutesBetweenAutomaticBackupsPreference,
             dailyBackupsToKeepPreference,
             weeklyBackupsToKeepPreference,
-            monthlyBackupsToKeepPreference
+            monthlyBackupsToKeepPreference,
         ).forEach { preference ->
-            preference.summaryProvider = Preference.SummaryProvider<EditTextPreference> {
-                when (viewModel.flowOfState.value) {
-                    is State.Fetching -> fragment.getString(R.string.pref__etc__summary__fetching)
-                    is State.Error.NoCollection -> fragment.getString(R.string.pref__etc__summary__no_collection)
-                    is State.Error.Exception -> fragment.getString(R.string.pref__etc__summary__error)
-                    is State.Fetched -> preference.text
+            preference.summaryProvider =
+                Preference.SummaryProvider<EditTextPreference> {
+                    when (viewModel.flowOfState.value) {
+                        is State.Fetching -> fragment.getString(R.string.pref__etc__summary__fetching)
+                        is State.Error.NoCollection -> fragment.getString(R.string.pref__etc__summary__no_collection)
+                        is State.Error.Exception -> fragment.getString(R.string.pref__etc__summary__error)
+                        is State.Fetched -> preference.text
+                    }
                 }
-            }
 
             preference.onClickListener = listener@{
                 when (val state = viewModel.flowOfState.value) {
                     is State.Fetching -> fragment.showSnackbar(R.string.pref__etc__snackbar__fetching)
                     is State.Error.NoCollection -> fragment.showSnackbar(R.string.pref__etc__snackbar__no_collection)
-                    is State.Error.Exception -> fragment.showSnackbar(
-                        text = fragment.requireContext().getUserFriendlyErrorText(state.exception)
-                    )
+                    is State.Error.Exception ->
+                        fragment.showSnackbar(
+                            text = fragment.requireContext().getUserFriendlyErrorText(state.exception),
+                        )
                     is State.Fetched -> return@listener ShouldShowDialog.Yes
                 }
                 return@listener ShouldShowDialog.No
@@ -159,7 +183,9 @@ class BackupLimitsPresenter(private val fragment: PreferenceFragmentCompat) : De
         }
     }
 
-    override fun onResume(owner: LifecycleOwner) { refresh() }
+    override fun onResume(owner: LifecycleOwner) {
+        refresh()
+    }
 
     fun refresh() {
         viewModel.launchFetchingOfBackupLimits()

@@ -16,28 +16,25 @@
 package com.ichi2.libanki
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ichi2.anki.Ease
 import com.ichi2.libanki.sched.Counts
 import com.ichi2.testutils.JvmTest
-import com.ichi2.utils.KotlinCleanup
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import com.ichi2.testutils.ext.addNote
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.notNullValue
 import org.json.JSONArray
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-// Note: These tests can't be run individually but can from the class-level
-// gradlew AnkiDroid:testDebug --tests "com.ichi2.libanki.AbstractSchedTest.*"
-@KotlinCleanup("reduce newlines in asserts")
-@KotlinCleanup("improve increaseAndAssertNewCountsIs")
 @RunWith(AndroidJUnit4::class)
 class AbstractSchedTest : JvmTest() {
     @Test
     fun ensureUndoCorrectCounts() {
-        val col = col
         val sched = col.sched
-        val dconf = col.decks.getConf(1)
+        val dconf = col.decks.getConfig(1)
         assertThat(dconf, notNullValue())
         dconf.getJSONObject("new").put("perDay", 10)
         col.decks.save(dconf)
@@ -51,7 +48,7 @@ class AbstractSchedTest : JvmTest() {
         val card = sched.card
         assertThat(sched.newCount(), equalTo(10))
         assertThat(sched.counts().new, equalTo(10))
-        sched.answerCard(card!!, 3)
+        sched.answerCard(card!!, Ease.GOOD)
         sched.card
         col.undo()
         assertThat(sched.newCount(), equalTo(10))
@@ -59,51 +56,50 @@ class AbstractSchedTest : JvmTest() {
 
     @Test
     fun undoAndRedo() {
-        val col = col
-        val conf = col.decks.confForDid(1)
+        val conf = col.decks.configDictForDeckId(1)
         conf.getJSONObject("new").put("delays", JSONArray(doubleArrayOf(1.0, 3.0, 5.0, 10.0)))
         col.decks.save(conf)
         col.config.set("collapseTime", 20 * 60)
         val sched = col.sched
 
-        addNoteUsingBasicModel("foo", "bar")
+        addBasicNote("foo", "bar")
 
         var card = sched.card
         assertNotNull(card)
         assertEquals(Counts(1, 0, 0), sched.counts())
 
-        sched.answerCard(card, 3)
+        sched.answerCard(card, Ease.GOOD)
 
         card = sched.card
         assertNotNull(card)
         assertEquals(
             Counts(0, 1, 0),
-            sched.counts()
+            sched.counts(),
         )
 
-        sched.answerCard(card, 3)
+        sched.answerCard(card, Ease.GOOD)
 
         card = sched.card
         assertNotNull(card)
         assertEquals(
             Counts(0, 1, 0),
-            sched.counts()
+            sched.counts(),
         )
 
         assertNotNull(card)
 
         assertEquals(
             Counts(0, 1, 0),
-            sched.counts()
+            sched.counts(),
         )
 
         card = sched.card!!
-        sched.answerCard(card, 3)
+        sched.answerCard(card, Ease.GOOD)
         card = sched.card
         assertNotNull(card)
         assertEquals(
             Counts(0, 1, 0),
-            sched.counts()
+            sched.counts(),
         )
         assertNotNull(card)
     }

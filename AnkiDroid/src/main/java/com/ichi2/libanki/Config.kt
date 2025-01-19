@@ -18,31 +18,38 @@ package com.ichi2.libanki
 
 import anki.config.ConfigKey
 import com.google.protobuf.kotlin.toByteStringUtf8
+import com.ichi2.libanki.utils.NotInLibAnki
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.ankiweb.rsdroid.Backend
 import net.ankiweb.rsdroid.exceptions.BackendNotFoundException
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
-class Config(val backend: Backend) {
-    inline fun<reified T> get(key: String): T? {
-        return try {
+class Config(
+    val backend: Backend,
+) {
+    inline fun <reified T> get(key: String): T? =
+        try {
             Json.decodeFromString<T>(backend.getConfigJson(key).toStringUtf8())
         } catch (ex: BackendNotFoundException) {
             null
         } catch (ex: SerializationException) {
             null
         }
-    }
 
-    inline fun<reified T> set(key: String, value: T) {
-        val valueString = when (value) {
-            JSONObject.NULL -> "null"
-            is JSONObject, is JSONArray -> value.toString()
-            else -> Json.encodeToString(value)
-        }
+    inline fun <reified T> set(
+        key: String,
+        value: T,
+    ) {
+        val valueString =
+            when (value) {
+                JSONObject.NULL -> "null"
+                is JSONObject, is JSONArray -> value.toString()
+                else -> Json.encodeToString(value)
+            }
         backend.setConfigJson(key, valueString.toByteStringUtf8(), false)
     }
 
@@ -50,11 +57,37 @@ class Config(val backend: Backend) {
         backend.removeConfig(key)
     }
 
-    fun getBool(key: ConfigKey.Bool): Boolean {
-        return backend.getConfigBool(key)
+    fun getBool(key: ConfigKey.Bool): Boolean = backend.getConfigBool(key)
+
+    fun setBool(
+        key: ConfigKey.Bool,
+        value: Boolean,
+    ) {
+        backend.setConfigBool(key, value, false)
     }
 
-    fun setBool(key: ConfigKey.Bool, value: Boolean) {
-        backend.setConfigBool(key, value, false)
+    @NotInLibAnki
+    inline fun <reified T> get(
+        key: String,
+        default: T,
+    ): T? =
+        try {
+            Json.decodeFromString<T>(backend.getConfigJson(key).toStringUtf8())
+        } catch (ex: BackendNotFoundException) {
+            default
+        } catch (ex: SerializationException) {
+            null
+        }
+
+    @NotInLibAnki
+    fun getObject(
+        key: String,
+        default: JSONObject,
+    ) = try {
+        JSONObject(backend.getConfigJson(key).toStringUtf8())
+    } catch (ex: BackendNotFoundException) {
+        default
+    } catch (ex: JSONException) {
+        default
     }
 }

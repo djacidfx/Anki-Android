@@ -25,18 +25,12 @@ import java.io.Serializable
  * General interface for a field of any type.
  */
 interface IField : Serializable {
-
     val type: EFieldType
 
     val isModified: Boolean
 
-    // For image type. Resets type.
-    // Makes no sense to call when type is not image.
-    // the same for other groups below.
-    var imagePath: String?
-
-    // For Audio type
-    var audioPath: String?
+    // Path of the folder containing media used by AnkiDroid.
+    var mediaPath: String?
 
     // For Text type
     var text: String?
@@ -60,5 +54,8 @@ interface IField : Serializable {
      * @param col Collection - bad abstraction, used to obtain media directory only.
      * @param value The HTML to send to the field.
      */
-    fun setFormattedString(col: Collection, value: String)
+    fun setFormattedString(
+        col: Collection,
+        value: String,
+    )
 }

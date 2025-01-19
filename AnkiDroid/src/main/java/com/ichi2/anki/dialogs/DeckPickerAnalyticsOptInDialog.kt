@@ -17,33 +17,36 @@
 package com.ichi2.anki.dialogs
 
 import android.os.Bundle
-import com.afollestad.materialdialogs.MaterialDialog
-import com.afollestad.materialdialogs.checkbox.checkBoxPrompt
-import com.afollestad.materialdialogs.checkbox.isCheckPromptChecked
-import com.ichi2.anki.DeckPicker
+import androidx.appcompat.app.AlertDialog
 import com.ichi2.anki.R
 import com.ichi2.anki.analytics.AnalyticsDialogFragment
 import com.ichi2.anki.analytics.UsageAnalytics
+import com.ichi2.anki.utils.ext.dismissAllDialogFragments
+import com.ichi2.utils.cancelable
+import com.ichi2.utils.checkBoxPrompt
+import com.ichi2.utils.create
+import com.ichi2.utils.getCheckBoxPrompt
+import com.ichi2.utils.message
+import com.ichi2.utils.positiveButton
+import com.ichi2.utils.title
 
 class DeckPickerAnalyticsOptInDialog : AnalyticsDialogFragment() {
-    override fun onCreateDialog(savedInstanceState: Bundle?): MaterialDialog {
-        super.onCreate(savedInstanceState)
-        return MaterialDialog(requireActivity()).show {
+    override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog {
+        super.onCreateDialog(savedInstanceState)
+        return AlertDialog.Builder(requireActivity()).create {
             title(R.string.analytics_dialog_title)
             message(R.string.analytics_summ)
-            checkBoxPrompt(R.string.analytics_title, isCheckedDefault = true, onToggle = null)
+            checkBoxPrompt(R.string.analytics_title, isCheckedDefault = true) {}
             positiveButton(R.string.dialog_continue) {
-                UsageAnalytics.isEnabled = it.isCheckPromptChecked()
-                (activity as DeckPicker).dismissAllDialogFragments()
+                UsageAnalytics.isEnabled = (it as AlertDialog).getCheckBoxPrompt().isChecked
+                activity?.dismissAllDialogFragments()
             }
             cancelable(true)
-            setOnCancelListener { (activity as DeckPicker).dismissAllDialogFragments() }
+            setOnCancelListener { activity?.dismissAllDialogFragments() }
         }
     }
 
     companion object {
-        fun newInstance(): DeckPickerAnalyticsOptInDialog {
-            return DeckPickerAnalyticsOptInDialog()
-        }
+        fun newInstance(): DeckPickerAnalyticsOptInDialog = DeckPickerAnalyticsOptInDialog()
     }
 }

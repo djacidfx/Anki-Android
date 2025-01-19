@@ -52,46 +52,38 @@ fun JSONArray.deepClone(): JSONArray {
                 is JSONObject -> getJSONObject(i).deepClone()
                 is JSONArray -> getJSONArray(i).deepClone()
                 else -> get(i)
-            }
+            },
         )
     }
     return clone
 }
 
-fun JSONArray.jsonObjectIterable(): Iterable<JSONObject> {
-    return Iterable { jsonObjectIterator() }
-}
+fun JSONArray.jsonObjectIterable(): Iterable<JSONObject> = Iterable { jsonObjectIterator() }
 
 @KotlinCleanup("see if jsonObject/string/longIterator() methods can be combined into one")
-fun JSONArray.jsonObjectIterator(): Iterator<JSONObject> {
-    return object : Iterator<JSONObject> {
-        private var mIndex = 0
-        override fun hasNext(): Boolean {
-            return mIndex < length()
-        }
+fun JSONArray.jsonObjectIterator(): Iterator<JSONObject> =
+    object : Iterator<JSONObject> {
+        private var index = 0
 
-        override fun next(): JSONObject {
-            val `object` = getJSONObject(mIndex)
-            mIndex++
-            return `object`
-        }
+        override fun hasNext(): Boolean = index < length()
+
+        override fun next() =
+            getJSONObject(index).also {
+                index++
+            }
     }
-}
 
-fun JSONArray.stringIterable(): Iterable<String> {
-    return Iterable { stringIterator() }
-}
+fun JSONArray.stringIterable(): Iterable<String> = Iterable { stringIterator() }
 
 fun JSONArray.stringIterator(): Iterator<String> {
     return object : Iterator<String> {
-        private var mIndex = 0
-        override fun hasNext(): Boolean {
-            return mIndex < length()
-        }
+        private var index = 0
+
+        override fun hasNext(): Boolean = index < length()
 
         override fun next(): String {
-            val string = getString(mIndex)
-            mIndex++
+            val string = getString(index)
+            index++
             return string
         }
     }
@@ -101,11 +93,4 @@ fun JSONArray.stringIterator(): Iterator<String> {
  * @return Given an array of objects, return the array of the value with `key`, assuming that they are String.
  * E.g. templates, fields are a JSONArray whose objects have name
  */
-@KotlinCleanup("simplify fun with apply and forEach")
-fun JSONArray.toStringList(key: String?): List<String> {
-    val l: MutableList<String> = ArrayList(length())
-    for (`object` in jsonObjectIterable()) {
-        l.add(`object`.getString(key!!))
-    }
-    return l
-}
+fun JSONArray.toStringList(key: String): List<String> = jsonObjectIterable().map { it.getString(key) }

@@ -36,7 +36,10 @@ import timber.log.Timber
  * @param cardBrowserLabelIndex The index into [R.array.card_browser_order_labels]
  */
 @Suppress("unused") // 'unused' entries are iterated over by .entries
-enum class SortType(val ankiSortType: String?, val cardBrowserLabelIndex: Int) {
+enum class SortType(
+    val ankiSortType: String?,
+    val cardBrowserLabelIndex: Int,
+) {
     NO_SORTING(null, 0),
     SORT_FIELD("noteFld", 1),
     CREATED_TIME("noteCrt", 2),
@@ -46,26 +49,36 @@ enum class SortType(val ankiSortType: String?, val cardBrowserLabelIndex: Int) {
     INTERVAL("cardIvl", 6),
     EASE("cardEase", 7),
     REVIEWS("cardReps", 8),
-    LAPSES("cardLapses", 9);
+    LAPSES("cardLapses", 9),
+    ;
 
-    fun save(config: Config, preferences: SharedPreferences) {
+    fun save(
+        config: Config,
+        preferences: SharedPreferences,
+    ) {
         Timber.v("update config to %s", this)
         // in the case of 'no sorting', we still need a sort type.
         // The inverse is handled in `fromCol`
         config.set("sortType", this.ankiSortType ?: SORT_FIELD.ankiSortType)
         config.set("noteSortType", this.ankiSortType ?: SORT_FIELD.ankiSortType)
         preferences.edit {
+            // TODO: This should be changed to use the collection
+            // and have a different value for cards & notes
             putBoolean("cardBrowserNoSorting", this@SortType == NO_SORTING)
         }
     }
 
     /** Converts the [SortType] to a [SortOrder] */
-    fun toSortOrder(): SortOrder =
-        if (this == NO_SORTING) SortOrder.NoOrdering() else SortOrder.UseCollectionOrdering()
+    fun toSortOrder(): SortOrder = if (this == NO_SORTING) SortOrder.NoOrdering() else SortOrder.UseCollectionOrdering()
 
     companion object {
-        fun fromCol(config: Config, preferences: SharedPreferences): SortType {
-            val colOrder = config.get<String>("sortType")
+        fun fromCol(
+            config: Config,
+            cardsOrNotes: CardsOrNotes,
+            preferences: SharedPreferences,
+        ): SortType {
+            val configKey = if (cardsOrNotes == CardsOrNotes.CARDS) "sortType" else "noteSortType"
+            val colOrder = config.get<String>(configKey)
             val type = entries.firstOrNull { it.ankiSortType == colOrder } ?: NO_SORTING
             if (type == SORT_FIELD && preferences.getBoolean("cardBrowserNoSorting", false)) {
                 return NO_SORTING
@@ -73,8 +86,6 @@ enum class SortType(val ankiSortType: String?, val cardBrowserLabelIndex: Int) {
             return type
         }
 
-        fun fromCardBrowserLabelIndex(index: Int): SortType {
-            return entries.firstOrNull { it.cardBrowserLabelIndex == index } ?: NO_SORTING
-        }
+        fun fromCardBrowserLabelIndex(index: Int): SortType = entries.firstOrNull { it.cardBrowserLabelIndex == index } ?: NO_SORTING
     }
 }

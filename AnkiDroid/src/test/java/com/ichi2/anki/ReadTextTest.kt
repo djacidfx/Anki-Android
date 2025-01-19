@@ -21,14 +21,14 @@ import com.ichi2.anki.ReadText.closeForTests
 import com.ichi2.anki.ReadText.initializeTts
 import com.ichi2.anki.ReadText.releaseTts
 import com.ichi2.anki.ReadText.textToSpeech
-import com.ichi2.anki.cardviewer.SoundSide.*
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.Matchers.*
+import com.ichi2.anki.reviewer.CardSide
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.equalTo
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.*
-import org.robolectric.Shadows.*
+import org.mockito.Mockito.mock
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(AndroidJUnit4::class)
 class ReadTextTest : RobolectricTest() {
@@ -64,13 +64,13 @@ class ReadTextTest : RobolectricTest() {
 
     @Test
     fun saveValue() {
-        assertThat(MetaDB.getLanguage(targetContext, 1, 1, QUESTION), equalTo(""))
+        assertThat(MetaDB.getLanguage(targetContext, 1, 1, CardSide.QUESTION), equalTo(""))
         storeLanguage(1, "French")
-        assertThat(MetaDB.getLanguage(targetContext, 1, 1, QUESTION), equalTo("French"))
+        assertThat(MetaDB.getLanguage(targetContext, 1, 1, CardSide.QUESTION), equalTo("French"))
         storeLanguage(1, "German")
-        assertThat(MetaDB.getLanguage(targetContext, 1, 1, QUESTION), equalTo("German"))
+        assertThat(MetaDB.getLanguage(targetContext, 1, 1, CardSide.QUESTION), equalTo("German"))
         storeLanguage(2, "English")
-        assertThat(MetaDB.getLanguage(targetContext, 2, 1, QUESTION), equalTo("English"))
+        assertThat(MetaDB.getLanguage(targetContext, 2, 1, CardSide.QUESTION), equalTo("English"))
     }
 
     @Test
@@ -95,8 +95,11 @@ class ReadTextTest : RobolectricTest() {
         initializeTts(context, mock(AbstractFlashcardViewer.ReadTextListener::class.java))
     }
 
-    private fun storeLanguage(i: Int, french: String) {
-        MetaDB.storeLanguage(targetContext, i.toLong(), 1, QUESTION, french)
+    private fun storeLanguage(
+        i: Int,
+        french: String,
+    ) {
+        MetaDB.storeLanguage(targetContext, i.toLong(), 1, CardSide.QUESTION, french)
         advanceRobolectricLooperWithSleep()
         advanceRobolectricLooperWithSleep()
     }

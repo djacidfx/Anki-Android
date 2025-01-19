@@ -20,10 +20,13 @@ import androidx.core.os.LocaleListCompat
 import androidx.preference.ListPreference
 import androidx.preference.SwitchPreferenceCompat
 import anki.config.ConfigKey
-import com.ichi2.anki.*
+import com.ichi2.anki.CollectionManager
 import com.ichi2.anki.CollectionManager.withCol
+import com.ichi2.anki.CrashReportService
+import com.ichi2.anki.R
 import com.ichi2.anki.contextmenu.AnkiCardContextMenu
 import com.ichi2.anki.contextmenu.CardBrowserContextMenu
+import com.ichi2.anki.launchCatchingTask
 import com.ichi2.utils.LanguageUtil
 import com.ichi2.utils.LanguageUtil.getStringByLocale
 import com.ichi2.utils.LanguageUtil.getSystemLocale
@@ -68,7 +71,11 @@ class GeneralSettingsFragment : SettingsFragment() {
         // Anki card context menu
         requirePreference<SwitchPreferenceCompat>(R.string.anki_card_external_context_menu_key).apply {
             title = getString(R.string.card_browser_enable_external_context_menu, getString(R.string.context_menu_anki_card_label))
-            summary = getString(R.string.card_browser_enable_external_context_menu_summary, getString(R.string.context_menu_anki_card_label))
+            summary =
+                getString(
+                    R.string.card_browser_enable_external_context_menu_summary,
+                    getString(R.string.context_menu_anki_card_label),
+                )
             setOnPreferenceChangeListener { newValue ->
                 AnkiCardContextMenu.ensureConsistentStateWithPreferenceStatus(requireContext(), newValue as Boolean)
             }
@@ -93,11 +100,12 @@ class GeneralSettingsFragment : SettingsFragment() {
                 LanguageUtil.setDefaultBackendLanguages(selectedLanguage as String)
                 runBlocking { CollectionManager.discardBackend() }
 
-                val localeCode = if (selectedLanguage != LanguageUtil.SYSTEM_LANGUAGE_TAG) {
-                    selectedLanguage
-                } else {
-                    null
-                }
+                val localeCode =
+                    if (selectedLanguage != LanguageUtil.SYSTEM_LANGUAGE_TAG) {
+                        selectedLanguage
+                    } else {
+                        null
+                    }
                 val localeList = LocaleListCompat.forLanguageTags(localeCode)
                 AppCompatDelegate.setApplicationLocales(localeList)
             }

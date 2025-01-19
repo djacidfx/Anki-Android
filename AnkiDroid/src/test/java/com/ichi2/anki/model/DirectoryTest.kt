@@ -20,7 +20,9 @@ import com.ichi2.compat.Test21And26
 import com.ichi2.testutils.HamcrestUtils.containsInAnyOrder
 import com.ichi2.testutils.withTempFile
 import org.acra.util.IOUtils
-import org.hamcrest.CoreMatchers.*
+import org.hamcrest.CoreMatchers.equalTo
+import org.hamcrest.CoreMatchers.not
+import org.hamcrest.CoreMatchers.nullValue
 import org.hamcrest.MatcherAssert
 import org.junit.Test
 import java.io.File
@@ -39,7 +41,7 @@ class DirectoryTest : Test21And26() {
         MatcherAssert.assertThat(
             "Directory should work with valid directory",
             Directory.createInstance(path),
-            not(nullValue())
+            not(nullValue()),
         )
     }
 
@@ -49,33 +51,37 @@ class DirectoryTest : Test21And26() {
         MatcherAssert.assertThat(
             "Directory requires an existing directory",
             Directory.createInstance(subdirectory),
-            nullValue()
+            nullValue(),
         )
     }
 
     @Test
     fun fails_if_file() {
-        val dir = kotlin.io.path.createTempFile().pathString
+        val dir =
+            kotlin.io.path
+                .createTempFile()
+                .pathString
         MatcherAssert.assertThat(
             "file should not become a Directory",
             Directory.createInstance(dir),
-            nullValue()
+            nullValue(),
         )
     }
 
     @Test
     fun list_files_returns_valid_paths() {
-        val dir = createValidTempDir()
-            .withTempFile("foo.txt")
-            .withTempFile("bar.xtx")
-            .withTempFile("baz.xtx")
+        val dir =
+            createValidTempDir()
+                .withTempFile("foo.txt")
+                .withTempFile("bar.xtx")
+                .withTempFile("baz.xtx")
 
         val files = dir.listFiles()
 
         MatcherAssert.assertThat(
             "Directory should contain only three files",
             files.toList(),
-            containsInAnyOrder(listOf("foo.txt", "bar.xtx", "baz.xtx").map { File(dir.directory, it) })
+            containsInAnyOrder(listOf("foo.txt", "bar.xtx", "baz.xtx").map { File(dir.directory, it) }),
         )
     }
 
@@ -85,7 +91,7 @@ class DirectoryTest : Test21And26() {
         MatcherAssert.assertThat(
             "empty directory should not have files",
             dir.hasFiles(),
-            equalTo(false)
+            equalTo(false),
         )
     }
 
@@ -103,7 +109,7 @@ class DirectoryTest : Test21And26() {
         MatcherAssert.assertThat(
             "non-empty directory should have files",
             dir.hasFiles(),
-            equalTo(true)
+            equalTo(true),
         )
     }
 
@@ -128,7 +134,5 @@ class DirectoryTest : Test21And26() {
         permissionDenied.assertThrowsWhenPermissionDenied { permissionDenied.directory.hasFiles() }
     }
 
-    private fun createValidTempDir(): Directory {
-        return Directory.createInstance(createTempDirectory().pathString)!!
-    }
+    private fun createValidTempDir(): Directory = Directory.createInstance(createTempDirectory().pathString)!!
 }

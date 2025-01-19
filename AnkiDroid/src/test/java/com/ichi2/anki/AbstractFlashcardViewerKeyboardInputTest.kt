@@ -17,7 +17,7 @@ package com.ichi2.anki
 
 import android.view.KeyEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.hamcrest.MatcherAssert.*
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import timber.log.Timber
@@ -62,28 +62,25 @@ class AbstractFlashcardViewerKeyboardInputTest : RobolectricTest() {
 
         assertThat(
             "When text field is focused, space should not display answer",
-            !underTest.didDisplayAnswer()
+            !underTest.didDisplayAnswer(),
         )
     }
 
     private class KeyboardInputTestCardViewer : AbstractFlashcardViewer() {
-        private var mDisplayAnswer = false
-        private var mFocusTextField = false
-        override fun answerFieldIsFocused(): Boolean {
-            return mFocusTextField
-        }
+        private var displayAnswer = false
+        private var focusTextField = false
+
+        override fun answerFieldIsFocused(): Boolean = focusTextField
 
         override fun performReload() {
             // intentionally blank
         }
 
         override fun displayCardAnswer() {
-            mDisplayAnswer = true
+            displayAnswer = true
         }
 
-        fun didDisplayAnswer(): Boolean {
-            return mDisplayAnswer
-        }
+        fun didDisplayAnswer(): Boolean = displayAnswer
 
         fun handleKeyPress(keycode: Int) {
             // COULD_BE_BETTER: Saves 20 seconds on tests to remove AndroidJUnit4,
@@ -101,7 +98,7 @@ class AbstractFlashcardViewerKeyboardInputTest : RobolectricTest() {
         }
 
         fun focusTextField() {
-            mFocusTextField = true
+            focusTextField = true
         }
 
         companion object {

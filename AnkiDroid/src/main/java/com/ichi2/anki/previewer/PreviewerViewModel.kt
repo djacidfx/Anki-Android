@@ -15,236 +15,246 @@
  */
 package com.ichi2.anki.previewer
 
-import android.content.Context
-import androidx.lifecycle.ViewModel
+import androidx.activity.result.ActivityResult
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.google.android.material.color.MaterialColors.getColor
-import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.anki.Flag
-import com.ichi2.anki.LanguageUtils
-import com.ichi2.anki.launchCatching
+import com.ichi2.anki.NoteEditor
+import com.ichi2.anki.OnErrorListener
+import com.ichi2.anki.asyncIO
+import com.ichi2.anki.browser.PreviewerIdsFile
+import com.ichi2.anki.cardviewer.CardMediaPlayer
+import com.ichi2.anki.cardviewer.SingleCardSide
+import com.ichi2.anki.launchCatchingIO
+import com.ichi2.anki.noteeditor.NoteEditorLauncher
+import com.ichi2.anki.pages.AnkiServer
+import com.ichi2.anki.reviewer.CardSide
 import com.ichi2.anki.servicelayer.MARKED_TAG
 import com.ichi2.anki.servicelayer.NoteService
+import com.ichi2.annotations.NeedsTest
 import com.ichi2.libanki.Card
-import com.ichi2.libanki.Sound.addPlayButtons
-import com.ichi2.themes.Themes
-import com.ichi2.utils.toRGBHex
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.ichi2.libanki.undoableOp
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import org.intellij.lang.annotations.Language
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import timber.log.Timber
 
-class PreviewerViewModel(private val selectedCardIds: LongArray, firstIndex: Int) : ViewModel() {
-    val eval = MutableSharedFlow<String>()
-    val onError = MutableSharedFlow<String>()
+class PreviewerViewModel(
+    previewerIdsFile: PreviewerIdsFile,
+    firstIndex: Int,
+    cardMediaPlayer: CardMediaPlayer,
+) : CardViewerViewModel(cardMediaPlayer),
+    OnErrorListener {
     val currentIndex = MutableStateFlow(firstIndex)
-    val backsideOnly = MutableStateFlow(false)
+    val backSideOnly = MutableStateFlow(false)
     val isMarked = MutableStateFlow(false)
-    val flagCode: MutableStateFlow<Int> = MutableStateFlow(Flag.NONE.code)
+    val flag: MutableStateFlow<Flag> = MutableStateFlow(Flag.NONE)
+    private val selectedCardIds: List<Long> = previewerIdsFile.getCardIds()
+    val isBackButtonEnabled =
+        combine(currentIndex, showingAnswer, backSideOnly) { index, showingAnswer, isBackSideOnly ->
+            index != 0 || (showingAnswer && !isBackSideOnly)
+        }
+    val isNextButtonEnabled =
+        combine(currentIndex, showingAnswer) { index, showingAnswer ->
+            index != selectedCardIds.lastIndex || !showingAnswer
+        }
 
-    private var showingAnswer = false
+    private val showAnswerOnReload get() = showingAnswer.value || backSideOnly.value
 
-    private lateinit var currentCard: Card
+    override var currentCard: Deferred<Card> =
+        asyncIO {
+            withCol { getCard(selectedCardIds[firstIndex]) }
+        }
+    override val server = AnkiServer(this).also { it.start() }
 
-    fun toggleBacksideOnly() {
-        Timber.v("toggleBacksideOnly() %b", !backsideOnly.value)
-        launchCatching {
-            backsideOnly.emit(!backsideOnly.value)
-            if (backsideOnly.value && !showingAnswer) {
+    /* *********************************************************************************************
+     ************************ Public methods: meant to be used by the View **************************
+     ********************************************************************************************* */
+
+    /** Call this after the webView has finished loading the page */
+    @NeedsTest("16302 - a sound-only card on the back/flipped with 'don't keep activities'")
+    @NeedsTest("16302 - on config changes, sound continues to play")
+    override fun onPageFinished(isAfterRecreation: Boolean) {
+        if (isAfterRecreation) {
+            launchCatchingIO {
+                showCard(showAnswerOnReload)
+                // isAfterRecreation can either mean:
+                // * after config change (ViewModel exists)
+                // * after recreation (ViewModel did not exist)
+                // if the ViewModel existed, we want to continue playing audio
+                // if not, we want to setup the sound player
+                cardMediaPlayer.ensureCardSoundsLoaded(currentCard.await())
+            }
+            return
+        }
+        launchCatchingIO {
+            currentIndex.collectLatest {
+                showCard(showAnswer = backSideOnly.value)
+                loadAndPlaySounds()
+            }
+        }
+    }
+
+    fun toggleBackSideOnly() {
+        Timber.v("toggleBackSideOnly() %b", !backSideOnly.value)
+        launchCatchingIO {
+            backSideOnly.emit(!backSideOnly.value)
+            if (!backSideOnly.value && showingAnswer.value) {
+                showQuestion()
+                cardMediaPlayer.autoplayAllSoundsForSide(CardSide.QUESTION)
+            } else if (backSideOnly.value && !showingAnswer.value) {
                 showAnswer()
+                cardMediaPlayer.autoplayAllSoundsForSide(CardSide.ANSWER)
             }
         }
     }
 
     fun toggleMark() {
-        launchCatching {
-            val note = currentCard.note()
+        launchCatchingIO {
+            val card = currentCard.await()
+            val note = withCol { card.note(this@withCol) }
             NoteService.toggleMark(note)
             isMarked.emit(NoteService.isMarked(note))
         }
     }
 
     fun setFlag(flag: Flag) {
-        launchCatching {
-            withCol {
-                setUserFlagForCards(listOf(currentCard.id), flag.code)
+        launchCatchingIO {
+            val card = currentCard.await()
+            undoableOp {
+                setUserFlagForCards(listOf(card.id), flag)
             }
-            flagCode.emit(flag.code)
+            this.flag.emit(flag)
         }
     }
 
-    fun cardId() = currentCard.id
+    fun toggleFlag(flag: Flag) {
+        if (this@PreviewerViewModel.flag.value == flag) {
+            setFlag(Flag.NONE)
+        } else {
+            setFlag(flag)
+        }
+    }
 
     /**
-     * MUST be called once before accessing [currentCard] for the first time
-     *
-     * @param reload useful if the note has been edited
+     * Shows the current card's answer
+     * or the next question if the answer is already being shown
      */
-    fun loadCurrentCard(reload: Boolean = false) {
-        Timber.v("loadCurrentCard()")
-        launchCatching {
-            if (!this::currentCard.isInitialized || reload) {
-                currentCard = withCol { getCard(selectedCardIds[currentIndex.value]) }
-            }
-            val answerShouldBeShown = showingAnswer || backsideOnly.value
-            showQuestion()
-            if (answerShouldBeShown) {
+    fun onNextButtonClick() {
+        launchCatchingIO {
+            if (!showingAnswer.value && !backSideOnly.value) {
                 showAnswer()
+                cardMediaPlayer.autoplayAllSoundsForSide(CardSide.ANSWER)
+            } else {
+                currentIndex.update { it + 1 }
             }
         }
     }
 
-    private suspend fun updateFlagIcon() {
-        flagCode.emit(currentCard.userFlag())
+    /**
+     * Shows the previous' card question
+     * or hides the current answer if the first card is being shown
+     */
+    fun onPreviousButtonClick() {
+        launchCatchingIO {
+            if (currentIndex.value > 0) {
+                currentIndex.update { it - 1 }
+            } else if (showingAnswer.value && !backSideOnly.value) {
+                showQuestion()
+            }
+        }
     }
 
-    private suspend fun updateMarkIcon() {
-        isMarked.emit(currentCard.note().hasTag(MARKED_TAG))
+    suspend fun getNoteEditorDestination() = NoteEditorLauncher.EditNoteFromPreviewer(currentCard.await().id)
+
+    fun handleEditCardResult(result: ActivityResult) {
+        if (result.data?.getBooleanExtra(NoteEditor.RELOAD_REQUIRED_EXTRA_KEY, false) == true ||
+            result.data?.getBooleanExtra(NoteEditor.NOTE_CHANGED_EXTRA_KEY, false) == true
+        ) {
+            Timber.v("handleEditCardResult()")
+            launchCatchingIO {
+                showCard(showAnswerOnReload)
+                loadAndPlaySounds()
+            }
+        }
     }
 
-    private suspend fun showQuestion() {
-        Timber.v("showQuestion()")
-        showingAnswer = false
+    fun replayAudios() {
+        launchCatchingIO {
+            val side = if (showingAnswer.value) SingleCardSide.BACK else SingleCardSide.FRONT
+            cardMediaPlayer.replayAllSounds(side)
+        }
+    }
 
-        val question = prepareCardTextForDisplay(currentCard.question())
-        val answer = withCol { media.escapeMediaFilenames(currentCard.answer()) }
-        val bodyClass = bodyClassForCardOrd(currentCard.ord)
+    fun cardsCount() = selectedCardIds.count()
 
-        eval.emit("_showQuestion(${Json.encodeToString(question)}, ${Json.encodeToString(answer)}, '$bodyClass');")
+    fun onSliderChange(value: Int) {
+        launchCatchingIO {
+            currentIndex.emit(value - 1)
+        }
+    }
 
+    /* *********************************************************************************************
+     *************************************** Internal methods ***************************************
+     ********************************************************************************************* */
+
+    private suspend fun showCard(showAnswer: Boolean) {
+        currentCard =
+            asyncIO {
+                withCol { getCard(selectedCardIds[currentIndex.value]) }
+            }
+        if (showAnswer) showAnswer() else showQuestion()
         updateFlagIcon()
         updateMarkIcon()
     }
 
-    /** Needs the question already being displayed to work (i.e. [showQuestion]),
-     * because of how the `_showAnswer()` javascript method works */
-    private suspend fun showAnswer() {
-        Timber.v("showAnswer()")
-        showingAnswer = true
-        val answer = prepareCardTextForDisplay(currentCard.answer())
-        eval.emit("_showAnswer(${Json.encodeToString(answer)});")
+    private suspend fun updateFlagIcon() {
+        flag.emit(currentCard.await().userFlag())
     }
 
-    private suspend fun prepareCardTextForDisplay(text: String): String {
-        return addPlayButtons(withCol { media.escapeMediaFilenames(text) })
+    private suspend fun updateMarkIcon() {
+        val card = currentCard.await()
+        val isMarkedValue = withCol { card.note(this@withCol).hasTag(this@withCol, MARKED_TAG) }
+        isMarked.emit(isMarkedValue)
     }
 
-    suspend fun displayCard(index: Int) {
-        if (index !in 0..selectedCardIds.lastIndex) {
-            return
-        }
-        currentIndex.emit(index)
-        currentCard = withCol { getCard(selectedCardIds[index]) }
-        showQuestion()
-        if (backsideOnly.value) {
-            showAnswer()
-        }
+    private suspend fun loadAndPlaySounds() {
+        val side: CardSide =
+            when {
+                backSideOnly.value -> CardSide.BOTH
+                showingAnswer.value -> CardSide.ANSWER
+                else -> CardSide.QUESTION
+            }
+        cardMediaPlayer.loadCardSounds(currentCard.await())
+        cardMediaPlayer.autoplayAllSoundsForSide(side)
     }
 
-    private suspend fun showAnswerOrDisplayCard(index: Int) {
-        if (!showingAnswer && !backsideOnly.value) {
-            showAnswer()
+    /** From the [desktop code](https://github.com/ankitects/anki/blob/1ff55475b93ac43748d513794bcaabd5d7df6d9d/qt/aqt/reviewer.py#L671) */
+    override suspend fun typeAnsFilter(
+        text: String,
+        typedAnswer: String?,
+    ): String =
+        if (showingAnswer.value) {
+            val typeAnswer = TypeAnswer.getInstance(currentCard.await(), text)
+            typeAnswer?.answerFilter() ?: text
         } else {
-            displayCard(index)
+            TypeAnswer.removeTags(text)
         }
-    }
-
-    suspend fun showAnswerOrPreviousCard() {
-        showAnswerOrDisplayCard(currentIndex.value - 1)
-    }
-
-    suspend fun showAnswerOrNextCard() {
-        showAnswerOrDisplayCard(currentIndex.value + 1)
-    }
-
-    fun launchCatching(block: suspend PreviewerViewModel.() -> Unit): Job {
-        return launchCatching(block, Dispatchers.IO) { message ->
-            onError.emit(message)
-        }
-    }
 
     companion object {
-        fun factory(selectedCardIds: LongArray, currentIndex: Int): ViewModelProvider.Factory {
-            return viewModelFactory {
+        fun factory(
+            previewerIdsFile: PreviewerIdsFile,
+            currentIndex: Int,
+            cardMediaPlayer: CardMediaPlayer,
+        ): ViewModelProvider.Factory =
+            viewModelFactory {
                 initializer {
-                    PreviewerViewModel(selectedCardIds, currentIndex)
+                    PreviewerViewModel(previewerIdsFile, currentIndex, cardMediaPlayer)
                 }
             }
-        }
-
-        /**
-         * Not exactly equal to anki's stdHtml.
-         *
-         * Aimed to be used only for reviewing/previewing cards
-         */
-        fun stdHtml(
-            context: Context = AnkiDroidApp.instance,
-            nightMode: Boolean = false
-        ): String {
-            val languageDirectionality = if (LanguageUtils.appLanguageIsRTL()) "rtl" else "ltr"
-
-            val baseTheme: String
-            val docClass: String
-            if (nightMode) {
-                docClass = "night-mode"
-                baseTheme = "dark"
-            } else {
-                docClass = ""
-                baseTheme = "light"
-            }
-
-            val colors = if (!nightMode) {
-                val canvasColor = getColor(context, android.R.attr.colorBackground, android.R.color.white).toRGBHex()
-                val fgColor = getColor(context, android.R.attr.textColor, android.R.color.black).toRGBHex()
-                ":root { --canvas: $canvasColor ; --fg: $fgColor; }"
-            } else {
-                val canvasColor = getColor(context, android.R.attr.colorBackground, android.R.color.black).toRGBHex()
-                val fgColor = getColor(context, android.R.attr.textColor, android.R.color.white).toRGBHex()
-                ":root[class*=night-mode] { --canvas: $canvasColor; --fg: $fgColor; }"
-            }
-
-            @Suppress("UnnecessaryVariable") // necessary for the HTML notation
-            @Language("HTML")
-            val html = """
-                <!DOCTYPE html>
-                <html class="$docClass" dir="$languageDirectionality" data-bs-theme="$baseTheme">
-                <head>
-                    <title>AnkiDroid</title>
-                        <link rel="stylesheet" type="text/css" href="/web/root-vars.css">
-                        <link rel="stylesheet" type="text/css" href="/web/reviewer.css">
-                    <style type="text/css">
-                        .night-mode button { --canvas: #606060; --fg: #eee; }
-                        $colors
-                    </style>
-                </head>
-                <body class="${bodyClass()}">
-                    <div id="_mark" hidden>&#x2605;</div>
-                    <div id="_flag" hidden>&#x2691;</div>
-                    <div id="qa"></div>
-                    <script src="file:///android_asset/jquery.min.js"></script>
-                    <script src="file:///android_asset/mathjax/tex-chtml.js"></script>
-                    <script src="/web/reviewer.js"></script>
-                    <script>bridgeCommand = function(){};</script>
-                </body>
-                </html>
-            """.trimIndent()
-            return html
-        }
-
-        /** @return body classes used when showing a card */
-        fun bodyClassForCardOrd(cardOrd: Int, nightMode: Boolean = Themes.currentTheme.isNightMode): String {
-            return "card card${cardOrd + 1} ${bodyClass(nightMode)}"
-        }
-
-        private fun bodyClass(nightMode: Boolean = Themes.currentTheme.isNightMode): String {
-            return if (nightMode) "nightMode night_mode" else ""
-        }
     }
 }

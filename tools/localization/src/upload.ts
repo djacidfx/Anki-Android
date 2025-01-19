@@ -18,11 +18,8 @@ import {
     credentialsConst,
     I18N_FILES,
     I18N_FILES_DIR,
-    TEMP_DIR,
-    TITLE_STR,
     MARKET_DESC_FILE,
 } from "./constants";
-import path from "path";
 
 // initialization of crowdin client
 const { uploadStorageApi, sourceFilesApi } = new crowdin(credentialsConst);
@@ -37,13 +34,6 @@ export async function uploadI18nFiles() {
         for (const file of I18N_FILES) {
             let I18N_FILE_TARGET_NAME = `${file}.xml`;
             let I18N_FILE_SOURCE_NAME = `${I18N_FILES_DIR}${I18N_FILE_TARGET_NAME}`;
-
-            // special case, the title is just the name as one line, it is ephemeral so create it
-            if (file == "15-markettitle") {
-                I18N_FILE_TARGET_NAME = "15-markettitle.txt";
-                I18N_FILE_SOURCE_NAME = path.join(TEMP_DIR, "15-markettitle.txt");
-                fs.writeFileSync(I18N_FILE_SOURCE_NAME, TITLE_STR);
-            }
 
             // special case, the market description is a txt file from different location
             if (file == "14-marketdescription") {

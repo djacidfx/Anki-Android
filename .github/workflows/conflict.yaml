@@ -1,11 +1,14 @@
-name: Conflict Scan
+name: 🛠️ Conflict Scan
 
 on:
+  push:
   schedule:
   - cron: "0 * * * *"
 
 jobs:
   scan_conflicts:
+    # Do not run the scheduled jobs on forks
+    if: (github.event_name == 'schedule' && github.repository == 'ankidroid/Anki-Android') || (github.event_name != 'schedule')
     permissions:
       contents: read
       pull-requests: write
@@ -22,6 +25,7 @@ jobs:
                     repo: context.repo.repo,
                     state: 'open',
                     sort: 'created',
+                    per_page: 100,
                 });
             }
 
@@ -80,12 +84,37 @@ jobs:
 
                         if (pullRequestData.data.mergeable_state === 'dirty') {
                             console.log(`Conflict exists in PR #${prNumber}`);
-                            await addLabel(['Has Conflicts'], prNumber);
+                            if (pullRequestData.data.labels.find(label => label.name === 'Has Conflicts')) {
+                                console.log(`'Has Conflicts' label already exists on PR #${prNumber}`);
+                            } else {
+                                console.log(`Adding 'Has Conflicts' label to PR #${prNumber}`);
+                                await addLabel(['Has Conflicts'], prNumber);
+                            }
                         } else if (pullRequestData.data.mergeable_state === 'clean') {
                             // if PR has no conflicts, remove the label
                             if (pullRequestData.data.labels.find(label => label.name === 'Has Conflicts')) {
                                 console.log(`Removing 'Has Conflicts' label from PR #${prNumber}`);
                                 await removeLabel(['Has Conflicts'], prNumber);
+                            }
+                        } else if (pullRequestData.data.mergeable_state === 'unstable') {
+                            console.log(`PR #${prNumber} is unstable`);
+                            const mergeable = pullRequestData.data.mergeable;
+                            if (mergeable) {
+                                console.log(`PR #${prNumber} is mergeable`);
+                                // if PR has no conflicts, remove the label
+                                if (pullRequestData.data.labels.find(label => label.name === 'Has Conflicts')) {
+                                    console.log(`Removing 'Has Conflicts' label from PR #${prNumber}`);
+                                    try {
+                                        await removeLabel(['Has Conflicts'], prNumber);
+                                    } catch(err) {
+                                        if (err.status === 404) {
+                                            console.warn("(Has Conflicts) label no longer found when trying to remove it");
+                                        } else {
+                                            console.log("Unexpected error while removing (Has Conflicts) label: " + err);
+                                            throw err;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

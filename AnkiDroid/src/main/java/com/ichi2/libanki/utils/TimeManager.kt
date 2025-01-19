@@ -18,7 +18,7 @@ package com.ichi2.libanki.utils
 
 import android.annotation.SuppressLint
 import androidx.annotation.VisibleForTesting
-import java.util.*
+import java.util.Stack
 
 /** Singleton providing an instance of [Time].
  * Used for tests to mock the time provider
@@ -28,7 +28,6 @@ import java.util.*
  */
 @SuppressLint("DirectSystemTimeInstantiation")
 object TimeManager {
-
     @VisibleForTesting
     fun reset() {
         mockInstances.clear()
@@ -39,6 +38,7 @@ object TimeManager {
         reset()
         mockInstances.push(mockTime)
     }
+
     private var mockInstances: Stack<Time> = Stack()
 
     var time: Time = SystemTime()

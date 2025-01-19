@@ -17,7 +17,6 @@ package com.ichi2.utils
 
 import java.io.File
 import java.io.RandomAccessFile
-import java.util.*
 
 class FileOperation {
     companion object {
@@ -31,10 +30,6 @@ class FileOperation {
             val b = ByteArray(f.length().toInt())
             f.readFully(b)
             return b
-        }
-
-        fun getFileContents(exportedFile: File): String {
-            return String(getFileContentsBytes(exportedFile))
         }
     }
 }

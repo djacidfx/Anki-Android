@@ -99,11 +99,11 @@ function reloadPage() {
     window.location.href = "signal:reload_card_html";
 }
 
-/* Tell the app the text in the input box when it loses focus */
-function taBlur(itag) {
+/* Inform the app of the current 'type in the answer' value */
+function taChange(itag) {
     //#5944 - percent wasn't encoded, but Mandarin was.
     var encodedVal = encodeURI(itag.value);
-    window.location.href = "typeblurtext:" + encodedVal;
+    window.location.href = "typechangetext:" + encodedVal;
 }
 
 /* Look at the text entered into the input box and send the text on a return */
@@ -162,6 +162,8 @@ var onPageFinished = function () {
 
     var card = document.querySelector(".card");
 
+    var typedElement = document.getElementsByName("typed")[0];
+
     _runHook(onUpdateHook)
         .then(() => {
             if (window.MathJax != null) {
@@ -184,6 +186,12 @@ var onPageFinished = function () {
             }
         })
         .then(() => card.classList.add("mathjax-rendered"))
+        .then(() => {
+            // Focus if the element contains the attribute
+            if (typedElement && typedElement.getAttribute("data-focus")) {
+                typedElement.focus();
+            }
+        })
         .then(_runHook(onShownHook));
 };
 
@@ -193,6 +201,9 @@ var onPageFinished = function () {
 function addHook(fn1, fn2) {
     if (fn1 === "ankiSearchCard") {
         searchCardHook.push(fn2);
+    }
+    if (fn1 === "ankiSttResult") {
+        speechToTextHook.push(fn2);
     }
 }
 
@@ -205,6 +216,19 @@ function ankiSearchCard(result) {
     result = JSON.parse(result);
     for (var i = 0; i < searchCardHook.length; i++) {
         searchCardHook[i](result);
+    }
+}
+
+// hook for getting speech to text result in callback method
+let speechToTextHook = [];
+function ankiSttResult(result) {
+    if (!speechToTextHook) {
+        return;
+    }
+    result = JSON.parse(result);
+    result.value = JSON.parse(result.value);
+    for (var i = 0; i < speechToTextHook.length; i++) {
+        speechToTextHook[i](result);
     }
 }
 
@@ -222,4 +246,17 @@ function showAllHints() {
     document.querySelectorAll("a.hint").forEach(el => {
         el.click();
     });
+}
+
+function userAction(number) {
+    try {
+        let userJs = globalThis[`userJs${number}`];
+        if (userJs != null) {
+            userJs();
+        } else {
+            window.location.href = `missing-user-action:${number}`;
+        }
+    } catch (e) {
+        alert(e);
+    }
 }

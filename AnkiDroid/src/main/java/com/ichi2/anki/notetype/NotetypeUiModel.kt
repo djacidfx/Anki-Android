@@ -17,28 +17,38 @@ package com.ichi2.anki.notetype
 
 import anki.notetypes.NotetypeNameId
 import anki.notetypes.NotetypeNameIdUseCount
+import com.ichi2.libanki.NoteTypeId
 
 /**
  * Data holder class which contains the data to display a single note type in [ManageNotetypes]'s
  * list of notetypes.
  */
-internal data class NoteTypeUiModel(
-    val id: Long,
+internal data class ManageNoteTypeUiModel(
+    val id: NoteTypeId,
     val name: String,
-    val useCount: Int
+    /**
+     * The number of note using this note type.
+     */
+    val useCount: Int,
 )
 
-internal fun NotetypeNameIdUseCount.toUiModel(): NoteTypeUiModel =
-    NoteTypeUiModel(id, name, useCount)
+internal fun NotetypeNameIdUseCount.toUiModel(): ManageNoteTypeUiModel = ManageNoteTypeUiModel(id, name, useCount)
 
 /**
- * Simplest data holder class which contains only the id and name of a notetype.
+ * Data holder class which contains the data to display a single note type in [AddNewNotesType]'s
+ * list of notetypes.
  */
-internal data class NotetypeBasicUiModel(
-    val id: Long,
+internal data class AddNotetypeUiModel(
+    val id: NoteTypeId,
     val name: String,
-    val isStandard: Boolean = false
+    /**
+     * Whether this is a note type provided by Anki by default.
+     * If false, this is one of the note type currently in this collection (potentially a clone of a standard note type)
+     */
+    val isStandard: Boolean = false,
 )
 
-internal fun NotetypeNameId.toUiModel(isStandard: Boolean = false): NotetypeBasicUiModel =
-    NotetypeBasicUiModel(id, name, isStandard)
+/**
+ * A note type from current collection as a [AddNotetypeUiModel].
+ */
+internal fun NotetypeNameId.toUiModel(): AddNotetypeUiModel = AddNotetypeUiModel(id, name, false)

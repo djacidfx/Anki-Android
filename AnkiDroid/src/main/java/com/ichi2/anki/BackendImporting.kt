@@ -17,44 +17,35 @@
 package com.ichi2.anki
 
 import android.content.Intent
+import android.net.Uri
 import androidx.fragment.app.FragmentActivity
 import anki.collection.OpChangesOnly
-import anki.import_export.ExportLimit
-import anki.import_export.ImportResponse
+import anki.import_export.ImportAnkiPackageRequest
 import com.ichi2.anki.CollectionManager.withCol
 import com.ichi2.libanki.buildSearchString
-import com.ichi2.libanki.exportAnkiPackage
-import com.ichi2.libanki.exportCollectionPackage
-import com.ichi2.libanki.importAnkiPackageRaw
+import com.ichi2.libanki.importAnkiPackage
 import com.ichi2.libanki.importCsvRaw
 import com.ichi2.libanki.undoableOp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-suspend fun importJsonFileRaw(input: ByteArray): ByteArray {
+suspend fun importAnkiPackageUndoable(input: ByteArray): ByteArray {
+    val request = ImportAnkiPackageRequest.parseFrom(input)
+    val path = Uri.encode(request.packagePath, "/")
     return withContext(Dispatchers.Main) {
-        val output = withCol { this.importAnkiPackageRaw(input) }
+        val output = withCol { importAnkiPackage(path, request.options) }
+        undoableOp { output.changes }
+        output.toByteArray()
+    }
+}
+
+suspend fun importCsvRaw(input: ByteArray): ByteArray =
+    withContext(Dispatchers.Main) {
+        val output = withCol { importCsvRaw(input) }
         val changes = OpChangesOnly.parseFrom(output)
         undoableOp { changes }
         output
     }
-}
-
-suspend fun FragmentActivity.importCsvRaw(input: ByteArray): ByteArray {
-    return withContext(Dispatchers.Main) {
-        val output = withProgress(
-            extractProgress = {
-                if (progress.hasImporting()) {
-                    text = progress.importing
-                }
-            },
-            op = { withCol { importCsvRaw(input) } }
-        )
-        val importResponse = ImportResponse.parseFrom(output)
-        undoableOp { importResponse }
-        output
-    }
-}
 
 /**
  * Css to hide the "Show" button from the final backend import page. As the user could import a lot
@@ -64,7 +55,8 @@ suspend fun FragmentActivity.importCsvRaw(input: ByteArray): ByteArray {
  *
  * NOTE: this should be used only with [android.webkit.WebView.evaluateJavascript].
  */
-val hideShowButtonCss = """
+val hideShowButtonCss =
+    """
     javascript:(
         function() {
             var hideShowButtonStyle = '.desktop-only { display: none !important; }';
@@ -73,7 +65,7 @@ val hideShowButtonCss = """
             document.head.appendChild(newStyle);       
         }
     )()
-""".trimIndent()
+    """.trimIndent()
 
 /**
  * Calls the native [CardBrowser] to display the results of the search query constructed from the
@@ -81,46 +73,11 @@ val hideShowButtonCss = """
  */
 suspend fun FragmentActivity.searchInBrowser(input: ByteArray): ByteArray {
     val searchString = withCol { buildSearchString(input) }
-    val starterIntent = Intent(this, CardBrowser::class.java).apply {
-        putExtra("search_query", searchString)
-        putExtra("all_decks", true)
-    }
+    val starterIntent =
+        Intent(this, CardBrowser::class.java).apply {
+            putExtra("search_query", searchString)
+            putExtra("all_decks", true)
+        }
     startActivity(starterIntent)
     return input
-}
-
-suspend fun AnkiActivity.exportApkg(
-    apkgPath: String,
-    withScheduling: Boolean,
-    withMedia: Boolean,
-    limit: ExportLimit
-) {
-    withProgress(
-        extractProgress = {
-            if (progress.hasExporting()) {
-                text = getString(R.string.export_preparation_in_progress)
-            }
-        }
-    ) {
-        withCol {
-            exportAnkiPackage(apkgPath, withScheduling, withMedia, limit)
-        }
-    }
-}
-
-suspend fun AnkiActivity.exportColpkg(
-    colpkgPath: String,
-    withMedia: Boolean
-) {
-    withProgress(
-        extractProgress = {
-            if (progress.hasExporting()) {
-                text = getString(R.string.export_preparation_in_progress)
-            }
-        }
-    ) {
-        withCol {
-            exportCollectionPackage(colpkgPath, withMedia, true)
-        }
-    }
 }

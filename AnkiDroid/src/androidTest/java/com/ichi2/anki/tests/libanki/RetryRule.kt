@@ -29,11 +29,13 @@ import kotlin.Throws
  * @param i how many times to try
  * @throws IllegalArgumentException if maxTries is less than 1
  */
-class RetryRule(i: Int) : TestRule {
+class RetryRule(
+    i: Int,
+) : TestRule {
     /**
      * How many times to try a test
      */
-    private var mMaxTries = 3
+    private var maxTries = 3
 
     /**
      * @param i number of times to try
@@ -41,21 +43,25 @@ class RetryRule(i: Int) : TestRule {
      */
     private fun setMaxTries(i: Int) {
         require(i >= 1) { "iterations < 1: $i" }
-        mMaxTries = i
+        maxTries = i
     }
 
-    override fun apply(base: Statement, description: Description): Statement {
-        return statement(base, description)
-    }
+    override fun apply(
+        base: Statement,
+        description: Description,
+    ): Statement = statement(base, description)
 
-    private fun statement(base: Statement, description: Description): Statement {
+    private fun statement(
+        base: Statement,
+        description: Description,
+    ): Statement {
         return object : Statement() {
             @Throws(Throwable::class)
             override fun evaluate() {
                 var caughtThrowable: Throwable? = null
 
                 // implement retry logic here
-                for (i in 0 until mMaxTries) {
+                for (i in 0 until maxTries) {
                     try {
                         base.evaluate()
                         return
@@ -65,7 +71,7 @@ class RetryRule(i: Int) : TestRule {
                         t.printStackTrace(System.err)
                     }
                 }
-                System.err.println(description.displayName + ": giving up after " + mMaxTries + " failures")
+                System.err.println(description.displayName + ": giving up after " + maxTries + " failures")
                 throw caughtThrowable!!
             }
         }

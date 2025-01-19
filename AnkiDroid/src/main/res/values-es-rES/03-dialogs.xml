@@ -46,43 +46,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="check_db_title">¿Comprobar base de datos?</string>
     <string name="check_db_warning">Esto podría tomar mucho tiempo</string>
-    <string name="contextmenu_deckpicker_delete_deck">Eliminar mazo</string>
+    <string name="contextmenu_deckpicker_delete_deck" maxLength="28">Eliminar mazo</string>
     <string name="delete_deck_title">¿Eliminar mazo?</string>
+    <plurals name="delete_deck_message">
+        <item quantity="one">¿Eliminar todas las tarjetas en %1$s? Contiene %2$d tarjeta</item>
+        <item quantity="other">¿Eliminar todas las tarjetas en %1$s? Contiene %2$d tarjetas</item>
+    </plurals>
+    <string name="delete_cram_deck_message">¿Borrar el mazo filtrado %s y devolver todas las cartas a sus mazos originales?</string>
     <string name="no_tts_available_message">No hay idiomas de texto-a-voz disponibles</string>
-    <string name="initializing_tts">Inicializando TTS&#8230;</string>
     <string name="tts_no_tts">No hablar</string>
     <string name="unused_strings">\n\nArchivos sin utilizar:\n</string>
-    <string name="preview_title" comment="Title of the window allowing to preview card(s)">Vista previa</string>
     <string name="reposition_card_dialog_title">Reposicionar nueva tarjeta</string>
-    <string name="reposition_card_dialog_message">Posición de inicio:</string>
     <string name="reposition_card_not_new_error">Sólo las tarjetas nuevas pueden ser reposicionadas</string>
     <plurals name="reposition_card_dialog_acknowledge">
         <item quantity="one">%d tarjeta reposicionada</item>
         <item quantity="other">%d tarjetas reposicionadas</item>
     </plurals>
     <string name="reset_card_dialog_title">Resetear el progreso de la tarjeta</string>
-    <string name="reset_card_dialog_message">Esta tarjeta se colocará al final de la nueva cola de tarjetas.</string>
     <plurals name="reset_cards_dialog_acknowledge">
         <item quantity="one">%d tarjeta reiniciada</item>
         <item quantity="other">%d tarjetas reiniciadas</item>
     </plurals>
-    <!-- Reschedule Card Dialog -->
-    <plurals name="reschedule_cards_dialog_title_new">
-        <item quantity="one">Reprogramar %d tarjeta</item>
-        <item quantity="other">Reprogramar %d tarjetas</item>
-    </plurals>
-    <plurals name="reschedule_card_dialog_interval">
-        <item quantity="one">Intervalo actual: %d día</item>
-        <item quantity="other">Intervalo actual: %d días</item>
-    </plurals>
-    <string name="reschedule_card_dialog_message">Reprogramar para revisión en x días:</string>
-    <plurals name="reschedule_cards_dialog_acknowledge">
-        <item quantity="one">%d tarjeta reprogramada</item>
-        <item quantity="other">%d tarjetas reprogramadas</item>
-    </plurals>
-    <string name="reschedule_card_dialog_new_card_warning">Se está reprogramando una nueva tarjeta. Reprogramar también convierte nuevas tarjetas en tarjetas de revisión. Utilice la opción \'reposiciónar tarjetas\' para cambiar la posición de una nueva tarjeta dentro de la nueva cola</string>
-    <string name="reschedule_card_dialog_warning_ease_reset">Reprogramar también reinicia cómo el planificador trata la tarjeta en el futuro (la facilidad se establecerá en %d%%)</string>
-    <string name="firefox_workaround_launched_reviewer_opening_deck">Selecciona el mazo en tu gestor de archivos o visita la página about:downloads para importarlo</string>
     <string name="answering_error_title">Error en la base de datos</string>
     <string name="answering_error_message">Se ha producido un error al escribir en la colección. Esto podría estar relacionado con una base de datos dañada o con un espacio en disco insuficiente.\n\nSi esto ocurre con más frecuencia, intenta verificar la base de datos, reparar la colección o restaurar desde una copia de seguridad. Para ello, presiona \"Opciones\".\n\nDe todos modos, podría ser un error de AnkiDroid; por favor, informa del error para que podamos comprobarlo.</string>
     <string name="answering_error_report">Reportar error</string>
@@ -90,15 +74,11 @@
     <string name="repair_deck_dialog">¿Realmente deseas intentar reparar la base de datos?\n\nAntes de iniciar el intento, se creará una copia en la subcarpeta \'%s\'.</string>
     <string name="intent_aedict_empty">La categoría \'por defecto\' está vacía</string>
     <string name="intent_aedict_category">Para añadir tarjetas AnkiDroid borra todas las categorías del Bloc de notas o agrega una llamada \'por defecto\'</string>
-    <string name="custom_study_new_total_new">Tarjetas nuevas en el mazo: %d</string>
-    <string name="custom_study_rev_total_rev">Repasos pendientes en el mazo: %d</string>
     <string name="custom_study_new_extend">Aumentar/disminuir (“-3”) el límite actual de tarjetas en</string>
     <string name="custom_study_rev_extend">Aumentar/disminuir (“-3”) el límite actual de revisión por</string>
     <string name="custom_study_forgotten">Revisar tarjetas olvidadas en los últimos x días:</string>
     <string name="custom_study_ahead">Revisar con x días de adelanto:</string>
-    <string name="custom_study_random">Selecciona x tarjetas al azar del mazo:</string>
     <string name="custom_study_preview">Previsualizar nuevas tarjetas añadidas en los últimos x días:</string>
-    <string name="custom_study_rebuild_deck_corrupt">No se pudo reconstruir el mazo de estudio personalizado</string>
     <string name="storage_full_title">Almacenamiento lleno</string>
     <string name="storage_almost_full_title">Almacenamiento casi lleno</string>
     <string name="no_space_to_downgrade_title" tools:ignore="UnusedResources">Sin spacio</string>
@@ -111,16 +91,21 @@
     <string name="dialog_confirm" tools:ignore="UnusedResources">Confirmar</string>
     <string name="dialog_no">No</string>
     <string name="dialog_yes">Sí</string>
+    <string name="dialog_keep">Conservar</string>
+    <string name="dialog_remove">Quitar</string>
     <string name="dialog_continue">Continuar</string>
-    <string name="dialog_processing">Procesando...</string>
+    <string name="dialog_processing">Procesando&#8230;</string>
     <string name="dialog_positive_create" comment="Create a new collection, probably erasing the previous one, may be necessary in case of error.">Crear</string>
-    <string name="dialog_positive_delete">Eliminar</string>
+    <string name="dialog_positive_delete" maxLength="28">Eliminar</string>
     <!-- Currently unsued, should be useful in the future -->
     <string name="dialog_positive_disable" tools:ignore="UnusedResources">Deshabilitar</string>
     <string name="dialog_positive_overwrite">Sobreescribir</string>
     <string name="dialog_positive_repair">Reparar</string>
     <string name="dialog_positive_replace">Reemplazar</string>
     <string name="dialog_collection_path_not_dir">La ruta especificada no era un directorio válido</string>
+    <string name="dialog_invalid_custom_certificate">El texto proporcionado no corresponde a un certificado X509 con codificación PEM válido.</string>
+    <string name="dialog_invalid_custom_certificate_title">Error al procesar el certificado</string>
+    <string name="dialog_updated_custom_certificate">Certificado actualizado</string>
     <!-- Media checking -->
     <string name="check_media_title">¿Comprobar archivos multimedia?</string>
     <string name="check_media_warning">Esto puede tardar mucho con las colecciones de grandes archivos multimedia</string>
@@ -145,14 +130,11 @@
     <!-- Empty cards -->
     <string name="emtpy_cards_finding">Buscando tarjetas vacías&#8230;</string>
     <string name="empty_cards_count">Tarjetas a eliminar: %d</string>
-    <string name="empty_cards_deleted">Tarjetas eliminadas: %d</string>
     <!-- Multimedia - Edit Field Activity -->
     <string name="multimedia_editor_audio_permission_refused">No se pudo obtener el permiso del micrófono.</string>
-    <string name="multimedia_editor_camera_permission_refused">No se pudo obtener el permiso de la cámara. Funcionalidad ha sido desactivada.</string>
     <string name="multimedia_editor_failed">Error al abrir el Editor Multimedia</string>
     <!-- Multimedia - Audio View -->
     <string name="multimedia_editor_audio_permission_denied">Permiso de grabación de audio denegado</string>
-    <string name="mutimedia_editor_assertion_failed">Error desconocido al mostrar el Editor Avanzado</string>
     <!-- Database Integrity Check -->
     <string name="integrity_check_startup_title">Ankidroid actualizado</string>
     <string name="integrity_check_startup_content">AnkiDroid ha sido actualizado. Esta actualización incluye correcciones para posibles problemas de base de datos, y le aconsejamos que comprueba la base de datos ahora.</string>
@@ -177,16 +159,15 @@
     <string name="failed_to_apply_background_image">Error al aplicar la imagen de fondo %s</string>
     <string name="background_image_too_large">Fondo del selector de mazos demasiado grande</string>
     <string name="image_max_size_allowed">Tamaño máximo de imagen %d MB permitido</string>
+    <string name="image_dimensions_too_large">Dimensiones de imagen son demasiadas grandes (%1$d × %2$d)</string>
     <!-- Global Intent handler -->
     <!-- Also used by Card Browser, not renaming to save translators effort -->
     <string name="intent_handler_failed_no_storage_permission">Faltan permisos de almacenamiento requeridos. Por favor, concede permiso de almacenamiento y vuelve a intentarlo.</string>
-    <!-- Browser Appearance -->
-    <string name="card_template_editor_card_browser_appearance_failed">No se pudo cargar la Apariencia del Navegador de Tarjetas</string>
     <!-- Boot Service -->
     <string name="boot_service_failed_to_schedule_notifications">Error al programar recordatorios</string>
     <string name="boot_service_too_many_notifications">Demasiados recordatorios programados. Algunos no aparecerán</string>
     <!-- Locale Selection Dialog -->
-    <string name="locale_selection_dialog_title">Selección de idioma del teclado</string>
+    <string name="locale_selection_dialog_title_new">Establecer Idioma</string>
     <string name="locale_selection_dialog_summary">Algunos teclados multilingües, tales como el soporte de GBoard para cambiar el idioma cuando se edite el texto\n\nSolicite la función \"setImeHintLocales\" de su fabricante de teclado si su teclado no cambia el idioma.</string>
     <!-- Help Dialog -->
     <string name="help_title_using_ankidroid">Usando AnkiDroid</string>
@@ -197,7 +178,7 @@
     <string name="help_item_mailing_list">Listas de Correo</string>
     <string name="help_item_reddit">Reddit</string>
     <string name="help_item_report_bug">Reportar un error</string>
-    <string name="help_title_support_ankidroid">Apoya AnkiDroid</string>
+    <string name="help_title_support_ankidroid" maxLength="28">Apoya AnkiDroid</string>
     <string name="help_item_support_opencollective_donate">Donar</string>
     <string name="help_item_support_develop_ankidroid">Desarrollar</string>
     <string name="help_item_support_rate_ankidroid">Calificar</string>
@@ -214,12 +195,13 @@
     <string name="help_item_ankiweb_terms_and_conditions">AnkiWeb Terms and Conditions</string>
     <string name="help_title_send_exception">Enviar informe de resolución de problemas</string>
     <string name="help_dialog_exception_report_debounce">El informe ya ha sido enviado</string>
+    <string name="help_dialog_exception_report_sent">¡Informe enviado!</string>
     <!--Sync-->
     <plurals name="sync_automatic_sync_needs_more_time">
         <item quantity="one">Una sincronización automática puede activarse en %d segundo</item>
         <item quantity="other">Una sincronización automática puede activarse en %d segundos</item>
     </plurals>
-    <string name="metered_sync_warning">Tu conexión es medida. La transferencia de datos puede costar dinero</string>
+    <string name="metered_sync_data_warning">Su proveedor de Internet podría cobrar dinero por el uso de datos</string>
     <string name="deck_picker_new">Número de cartas nuevas para ver hoy en este mazo.</string>
     <string name="deck_picker_rev">Número de cartas que vencen hoy en este mazo.</string>
     <string name="deck_picker_lrn">Número de cartas en aprendizaje en este mazo.</string>
@@ -235,7 +217,7 @@
     <!-- scoped storage -->
     <string name="backup_your_collection">Haz una copia de seguridad de tu colección</string>
     <string name="backup_collection_message">No has hecho una copia de seguridad de tu colección en un tiempo. Deberías hacer esto ahora para prevenir la pérdida de datos</string>
-    <string name="button_backup">Copia de seguridad</string>
+    <string name="button_backup" maxLength="41">Copia de seguridad</string>
     <string name="button_disable_reminder">Desactivar recordatorio</string>
     <string name="button_backup_later" comment="dismiss the \'Backup\' dialog for around 2 weeks">Más tarde</string>
     <string name="button_do_not_show_again" comment="permanently dismisses a dialog">No mostrar de nuevo</string>
@@ -244,4 +226,41 @@
     </string>
     <string name="dismiss_backup_warning_upgrade">        Debido a cambios en la privacidad de Android, tus datos y copias de seguridad automatizadas serán inaccesibles si la aplicación es desinstalada
     </string>
+    <string name="deck_already_exists">El mazo ya existe.</string>
+    <string name="empty_deck_name">El nombre del mazo no puede estar vacío</string>
+    <string name="create_deck_numeric_hint">Si tienes problemas de ordenamiento de mazos (por ejemplo ‘10’ aparece antes de ‘2’), reemplaza ‘2’ con ‘02’</string>
+    <!-- Set Due Date -->
+    <string name="set_due_date_match_interval" comment="when setting a card\'s due date, this checkbox also changes the interval of the card">Establecer intervalo al mismo valor</string>
+    <plurals name="set_due_date_single_day_label" comment="a date control is provided afterwards">
+        <item quantity="one">Mostrar tarjeta en</item>
+        <item quantity="other">Mostrar tarjetas en</item>
+    </plurals>
+    <plurals name="set_due_date_range_label" comment="a date control is provided afterwards">
+        <item quantity="one">Mostrar tarjeta en rango</item>
+        <item quantity="other">Mostrar tarjetas en rango</item>
+    </plurals>
+    <plurals name="set_due_date_label_suffix" comment="a suffix on a text field allowing a user to enter a number of days">
+        <item quantity="one">día</item>
+        <item quantity="other">días</item>
+    </plurals>
+    <string name="range_delimiter" comment="Placed between two input boxes to denote a range">–</string>
+    <string name="set_due_date_range_start" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'minimum\' value of this range (inclusive)">De</string>
+    <string name="set_due_date_range_end" comment="\'Set Due Date\' may change the due date of a card to a random number of days in the future. This labels the \'maximum\' value of this range (inclusive)">A</string>
+    <!-- Instant Note Editor -->
+    <string name="cloze_note_required">Nota de tipo cloze requerida</string>
+    <string name="cloze_not_found_message">No se encontró nota de tipo cloze. Abra el editor de notas o vuelva a intentarlo después de añadir una nota de tipo cloze.</string>
+    <string name="open">Abrir</string>
+    <string name="change_cloze_number">Cambiar número de cloze</string>
+    <string name="cloze_number">Número de cloze:</string>
+    <string name="change_editor_mode">Cambiar modo editor</string>
+    <string name="open_note_editor">Abrir editor de notas</string>
+    <string name="change_cloze_mode">Cambiar modo de cloze</string>
+    <!-- Outdated WebView dialog -->
+    <string name="webview_update_message">El sistema WebView está obsoleto. Algunas funciones no funcionarán correctamente. Por favor, actualízalo.\nnVersión instalada: %1$d\nVersión mínima requerida: %2$d</string>
+    <string name="compress">Comprimir</string>
+    <!-- Tts playback error dialog -->
+    <string name="tts_error_dialog_title">Este idioma no está disponible.</string>
+    <string name="tts_error_dialog_reason_text">El motor de texto a voz <b>%1$s</b> no soporta el siguiente idioma: <b>%2$s</b></string>
+    <string name="tts_error_dialog_change_button_text">Cambiar motor</string>
+    <string name="tts_error_dialog_supported_voices_button_text">Opciones de voz</string>
 </resources>
